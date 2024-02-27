@@ -16,15 +16,15 @@ async def login(request:Request):
 	return templates.TemplateResponse('login.html',{'request': request})
 
 @app.get('/signup')
-async def login(request:Request):
+async def signup(request:Request):
 	return templates.TemplateResponse('signup.html',{'request': request})
 
 @app.get('/album')
-async def login(request:Request):
+async def album(request:Request):
 	return templates.TemplateResponse('album.html',{'request': request})
 
 @app.get('/upload')
-async def login(request:Request):
+async def upload(request:Request):
 	return templates.TemplateResponse('upload.html',{'request': request})
 
 if __name__ == '__main__':
