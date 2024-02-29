@@ -41,3 +41,5 @@ fi
 
 echo "Executing ~/.bashrc" >> ~/.bashrc
 . ~/.bashrc
+
+poetry config virtualenvs.in-project true
