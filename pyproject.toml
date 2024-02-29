@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "level2-3-cv-finalproject-cv-06"
 version = "0.1.0"
-description = "Final Project"
+description = ""
 authors = ["백광현_T6074 <toiquen419@gmail.com>"]
 readme = "README.md"
 
@@ -9,21 +9,13 @@ readme = "README.md"
 python = ">=3.11,<3.12"
 torch = {url = "https://download.pytorch.org/whl/cu118/torch-2.0.1%2Bcu118-cp311-cp311-linux_x86_64.whl"}
 torchvision = {url = "https://download.pytorch.org/whl/cu118/torchvision-0.15.2%2Bcu118-cp311-cp311-linux_x86_64.whl"}
-matplotlib = "^3.8.3"
-opencv-python = "^4.9.0.80"
-fastapi = "^0.110.0"
+fastapi = {extras = ["all"], version = "^0.105.0"}
 uvicorn = "^0.27.1"
-pydantic-settings = "^2.2.1"
-sqlalchemy = ">=1.4.28,<2.0"
 loguru = "^0.7.2"
-pytorch-lightning = "^2.2.0.post0"
-wandb = "^0.16.3"
-hydra-core = "^1.3.2"
-omegaconf = "^2.3.0"
-hydra-colorlog = "^1.2.0"
-apache-airflow = "^2.8.2"
-apache-airflow-providers-google = "^10.15.0"
-apache-airflow-providers-slack = "^8.6.1"
+jinja2 = "^3.1.3"
+sqlmodel = "^0.0.14"
+pydantic-settings = "^2.1.0"
+sqlalchemy = "2.0.23"
 
 [build-system]
 requires = ["poetry-core"]
