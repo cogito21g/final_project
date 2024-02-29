@@ -17,6 +17,41 @@ sqlmodel = "^0.0.14"
 pydantic-settings = "^2.1.0"
 sqlalchemy = "2.0.23"
 
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.6.2"
+black = "^24.2.0"
+autoflake = "^2.3.0"
+isort = "^5.13.2"
+flake8 = "^7.0.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.0.2"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+
+[tool.flake8]
+ignore = "E203, E501, W503"
+max-line-length = 88
+exclude = ".git,__pycache__,docs/,old/,build/,dist/"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
