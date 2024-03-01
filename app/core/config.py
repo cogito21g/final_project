@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     MYSQL_SERVER_PASSWORD : str
     MYSQL_DATABASE : str
     
+    AWS_ACCESS_KEY : str
+    AWS_SECRET_KEY : str
+    BUCKET : str = "cv06-bucket"
+    
     class Config:
         env_file = ".env"
         

@@ -33,27 +33,29 @@ class Token(BaseModel):
 class TokenPayload(BaseModel):
     sub: Optional[str] = None
 
-class User(UserBase):
-    user_id: int
-    uploads: List["Upload"] = []
-
-    class Config:
-        orm_mode = True
-
+# Upload post 스키마 
 class UploadCreate(BaseModel):
     name: str
     date: datetime
     is_realtime: Optional[bool] = None
     user_id: int
 
-class Upload(UploadCreate):
-    upload_id: int
-    videos: List["Video"] = []
+# prediction post 스키마
+class RTPredictionRequest(BaseModel):
+    video_id: int
+    is_realtime: Optional[bool] = None
+    user_id: int
+    
+class PredictionRequest(BaseModel):
+    video_id: int
+    video_url : str
+    user_id: int
+    
+class PredictionResponse(BaseModel):
+    video_id: int
+    frame_id: Optional[list] = []
 
-    class Config:
-        orm_mode = True
-
-# Pydantic 스키마 - Video
+# Video post 스키마
 class VideoCreate(BaseModel):
     video_url: str
     upload_id: int
@@ -65,7 +67,7 @@ class Video(VideoCreate):
     class Config:
         orm_mode = True
 
-# Pydantic 스키마 - Frame
+# Frame Post 스키마
 class FrameCreate(BaseModel):
     frame_url: str
     time_stamp: time

@@ -49,6 +49,43 @@
             </div>
         </div>
       </div>
-
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // 페이지 로딩 시 실행되는 코드
+            getUserInfo();
+        });
+        
+        async function getUserInfo() {
+            try {
+                const response = await fetch("/token");  // 서버에 토큰을 가져오는 엔드포인트에 대한 요청
+                const data = await response.json();
+        
+                // 로그인한 경우
+                if (data.user_login) {
+                    userNav.innerHTML = `
+                        <li class="nav-item">
+                            <a class="nav-link" aria-current="page" href="#">${data.email}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" aria-current="page" href="/">Logout</a>
+                        </li>
+                    `;
+                } else {
+                    // 로그인하지 않은 경우
+                    userNav.innerHTML = `
+                        <li class="nav-item">
+                            <a class="nav-link" aria-current="page" href="/login">Log in</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" aria-current="page" href="/signup">Sign up</a>
+                        </li>
+                    `;
+                }
+            } catch (error) {
+                console.error("Error fetching user info:", error);
+            }
+        }
+        
+    </script>
     </body>
 </html>

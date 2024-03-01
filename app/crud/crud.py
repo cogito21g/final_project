@@ -1,3 +1,4 @@
+from datetime import timedelta, datetime, date
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from models import models
@@ -7,7 +8,6 @@ from core.security import get_password_hash, verify_password
 from models.models import User
 
 ## User
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_user(db: Session, user: UserCreate):
@@ -57,11 +57,16 @@ def delete_upload(db: Session, upload_id: int):
         return True
     return False
 
-def get_upload(db: Session, upload_id: int):
-    return db.query(models.Upload).filter(models.Upload.upload_id == upload_id).first()
+def get_upload_id(db: Session, user_id: int, name: str, date: date,):
+    return db.query(models.Upload).filter(
+        (models.Upload.user_id == user_id) |
+        (models.Upload.name == name) |
+        (models.Upload.date == date)
+        ).first()
 
-def get_uploads(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Upload).offset(skip).limit(limit).all()
+def get_uploads(db: Session, user_id: int):
+    return db.query(models.Upload).filter(
+        models.Upload.user_id == user_id).all()
 
 ## Video
 def create_video(db: Session, video: VideoCreate):

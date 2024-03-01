@@ -15,7 +15,7 @@ app = FastAPI()
 
 @app.get("/")
 async def home(request:Request):
-	return templates.TemplateResponse("index.html", {'request': request})
+	return templates.TemplateResponse("main.html", {'request': request})
 
 @app.get('/login')
 async def login(request:Request):
@@ -27,13 +27,17 @@ async def signup(request:Request):
 
 app.include_router(user_router.router)
 
+@app.get('/upload')
+async def upload(request:Request):
+	return templates.TemplateResponse('upload.html',{'request': request})
+
+app.include_router(upload_router.router)
+
 @app.get('/album')
 async def album(request:Request):
 	return templates.TemplateResponse('album.html',{'request': request})
 
-@app.get('/upload')
-async def upload(request:Request):
-	return templates.TemplateResponse('upload.html',{'request': request})
+app.include_router(album_router.router)
 
 if __name__ == '__main__':
 	uvicorn.run(app, host='0.0.0.0', port=30011)

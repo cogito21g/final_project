@@ -49,25 +49,17 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <th scope="row">1</th>
-                    <td>mab</td>
-                    <td>mambo@test.com</td>
-                    <td>
-                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modifyModal">수정</button>
-                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">삭제</button>
-                    </td>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">2</th>
-                    <td>Jacob</td>
-                    <td>mambo@test.com</td>
-                    <td>
-                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modifyModal">수정</button>
-                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">삭제</button>
-                    </td>
-                  </tr>
+                    {% for upload in upload_list %}
+                    <tr>
+                        <th scope="row">{{ loop.index }}</th>
+                        <td>{{ upload.name }}</td>
+                        <td>{{ upload.user_email }}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modifyModal">수정</button>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">삭제</button>
+                        </td>
+                    </tr>
+                {% endfor %}
                 </tbody>
               </table>
         </div>
