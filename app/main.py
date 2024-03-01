@@ -3,8 +3,14 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
 
+from api.album import album_router 
+from api.user import user_router
+from api.video import video_router
+from api.upload import upload_router
+
 
 templates = Jinja2Templates(directory="templates")
+
 app = FastAPI()
 
 @app.get("/")
@@ -19,6 +25,8 @@ async def login(request:Request):
 async def signup(request:Request):
 	return templates.TemplateResponse('signup.html',{'request': request})
 
+app.include_router(user_router.router)
+
 @app.get('/album')
 async def album(request:Request):
 	return templates.TemplateResponse('album.html',{'request': request})
@@ -28,4 +36,4 @@ async def upload(request:Request):
 	return templates.TemplateResponse('upload.html',{'request': request})
 
 if __name__ == '__main__':
-	uvicorn.run(app, host='0.0.0.0', port=8000)
+	uvicorn.run(app, host='0.0.0.0', port=30011)
