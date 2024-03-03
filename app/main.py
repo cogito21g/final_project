@@ -12,6 +12,7 @@ from api.upload import upload_router
 templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
+app.include_router(user_router.router)
 
 @app.get("/")
 async def home(request:Request):
@@ -25,7 +26,9 @@ async def login(request:Request):
 async def signup(request:Request):
 	return templates.TemplateResponse('signup.html',{'request': request})
 
-app.include_router(user_router.router)
+@app.post('/signup')
+async def login(request: Request):
+	return templates.TemplateResponse('signup.html', {'request': request})
 
 @app.get('/upload')
 async def upload(request:Request):
