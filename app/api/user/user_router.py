@@ -20,11 +20,11 @@ settings = get_settings()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
-router = APIRouter(prefix='/login')
+signup_router = APIRouter(prefix='/login')
 templates = Jinja2Templates(directory="templates")
 
 
-@router.post('')
+@signup_router.post('')
 async def user_create(request: Request):
     body = await request.form()     # html에서 받은 form 데이터
 
