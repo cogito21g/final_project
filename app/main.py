@@ -13,6 +13,7 @@ templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
 app.include_router(user_router.signup_router)
+app.include_router(user_router.login_router)
 
 @app.get("/")
 async def home(request:Request):
