@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Response, Request, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Depends
@@ -21,6 +21,7 @@ settings = get_settings()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 signup_router = APIRouter(prefix='/login')
+login_router = APIRouter(prefix='/main')
 templates = Jinja2Templates(directory="templates")
 
 
@@ -50,31 +51,36 @@ async def user_create(request: Request):
     return templates.TemplateResponse("login.html", {"request": request, "body": body})
 
 
-# @router.post("/", response_model=schemas.Token)
-# def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(),
-#                            db: Session = Depends(get_db)):
+@login_router.post('')
+async def login_and_access_token(request: Request):
 
-#     # check user and password
-#     user = crud.get_user_by_email(db, form_data.username)
-#     if not user or not pwd_context.verify(form_data.password, user.password):
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="이메일 혹은 비밀번호가 올바르지 않습니다.",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
+    # login.thml form에서 받은 email, password가 User 테이블에 있는지 확인하기
+    # 입력받은 email이 없거나, 비밀번호가 틀린 경우 로그인 화면을 다시 띄웁니다.
+    body = await request.form()
+    user_info_query = Session(db_engine).query(models.User).filter(models.User.email == body['email']).first()
 
-#     # make access token
-#     data = {
-#         "sub": user.email,
-#         "exp": datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-#     }
-#     access_token = jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    if not user_info_query or not pwd_context.verify(body['password'], user_info_query.password):
+        return templates.TemplateResponse('login.html', {'request': request})
+        # RedirectResponse로 화면을 다시 띄우려 했지만, POST login이 회원가입하면서 바로 넘어오는 로직으로 구현되어 있어 템플릿으로 구현했습니다.
+    
+    # make access token
+    data = {
+        "sub": user_info_query.email,
+        "exp": datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    }
+    access_token = jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-#     return {
-#         "access_token": access_token,
-#         "token_type": "bearer",
-#         "email": user.email
-#     }
+    token = {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "email": user_info_query.email
+    }
+
+    template_response = templates.TemplateResponse('main.html', {'request': request, 'token': token})
+    # 쿠키 저장
+    template_response.set_cookie(key="access_token", value=token, expires=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), httponly=True)
+    
+    return template_response
 
 
 def get_current_user(token: str = Depends(oauth2_scheme),

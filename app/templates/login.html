@@ -39,18 +39,18 @@
 
     <div class="container text-center">
       <div class="row justify-content-center">
-        <form class="row g-3" id="login-form">
+        <form class="row g-3" id="login-form" action="/main" method="post" enctype="application/x-www-form-urlencoded">
             <div class="col--3">
               <label for="inputEmail4" class="form-label">Email</label>
-              <input type="email" class="form-control" id="inputEmail4" placeholder="input email">
+              <input type="email" class="form-control" id="inputEmail4" placeholder="input email" name="email">
             </div>
             <div class="col--3">
                 <label for="inputPassword4" class="form-label">Password</label>
-                <input type="password" class="form-control" id="inputPassword4" placeholder="input password">
+                <input type="password" class="form-control" id="inputPassword4" placeholder="input password" name="password">
             </div>
 
             <div class="col-3-12">
-                <button type="button" class="btn btn-primary btn-lg" onclick="submitLoginForm()">Sign in</button>
+                <button type="submit" class="btn btn-primary btn-lg">Sign in</button>
             </div>
           </form>
 
@@ -58,29 +58,6 @@
       </div>
     </div>
     <script>
-        async function submitLoginForm() {
-            const email = document.getElementById("inputEmail4").value;
-            const password = document.getElementById("inputPassword4").value;
-
-            const response = await fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    username: email,
-                    password: password,
-                }),
-            });
-
-            if (response.ok) {
-                // 로그인 성공 시 홈페이지로 리다이렉트
-                window.location.href = '/';
-            } else {
-                // 로그인 실패 시 처리
-                console.error('로그인 실패');
-            }
-        }
     </script>
     </body>
 </html>
