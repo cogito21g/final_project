@@ -50,7 +50,7 @@
             </div>
 
             <div class="col-3-12">
-                <button type="button" class="btn btn-primary btn-lg" onclick="submitLoginForm()">Sign in</button>
+                <button type="submit" class="btn btn-primary btn-lg">Sign in</button>
             </div>
           </form>
 
@@ -58,29 +58,6 @@
       </div>
     </div>
     <script>
-        async function submitLoginForm() {
-            const email = document.getElementById("inputEmail4").value;
-            const password = document.getElementById("inputPassword4").value;
-
-            const response = await fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    username: email,
-                    password: password,
-                }),
-            });
-
-            if (response.ok) {
-                // 로그인 성공 시 홈페이지로 리다이렉트
-                window.location.href = '/';
-            } else {
-                // 로그인 실패 시 처리
-                console.error('로그인 실패');
-            }
-        }
     </script>
     </body>
 </html>
