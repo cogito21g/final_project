@@ -1,6 +1,6 @@
 from typing import Union
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.templating import Jinja2Templates
 
 from api.album import album_router 
@@ -42,6 +42,17 @@ async def album(request:Request):
 	return templates.TemplateResponse('album.html',{'request': request})
 
 app.include_router(album_router.router)
+
+@app.get('/logout')
+async def logout(request: Request, response: Response):
+	access_token = request.cookies.get("access_token")
+
+	# 쿠키 삭제
+	template_response = templates.TemplateResponse('main.html', {'request': request})
+	template_response.delete_cookie(key="access_token")
+
+	return template_response
+
 
 if __name__ == '__main__':
 	uvicorn.run(app, host='0.0.0.0', port=30011)
