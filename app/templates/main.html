@@ -15,6 +15,8 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    
+                    {% if token %}
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         <li class="nav-item">
                             <a class="nav-link" aria-current="page" href="/upload">비디오 업로드</a>
@@ -23,8 +25,6 @@
                             <a class="nav-link" href="/album">Album</a>
                         </li>
                     </ul>
-                    
-                    {% if token %}
                     <ul class="navbar-nav me-auto me-2 me-lg-0">
                         <li class="nav-item">
                             <a class="nav-link" aria-current="page" href="#">{{ token.email }}</a>
@@ -34,6 +34,8 @@
                         </li>
                     </ul>
                     {% else %}
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    </ul>
                     <ul class="navbar-nav me-auto me-2 me-lg-0">
                         <li class="nav-item">
                             <a class="nav-link" aria-current="page" href="/user/login">Log in</a>
@@ -53,8 +55,16 @@
               <!-- <img src="./test.jpeg" class="card-img-top" alt="..."> -->
               <div class="card-body">
                 <h5 class="card-title">무인매장 이상행동 탐지</h5>
+                {% if token %}
+                <p class="card-text">동영상 파일을 업로드하면 이상행동을 탐지해 드립니다. 지금 바로 이용해보세요.</p>
+                <a href="/upload" id="startButton" class="btn btn-primary"><i class="fa-solid fa-camera"></i>지금 시작하기</a>
+                {% else %}
                 <p class="card-text">동영상 파일을 업로드하면 이상행동을 탐지해 드립니다. 로그인 후 무료로 이용해보세요.</p>
-                <a href="#" id="startButton" class="btn btn-primary"><i class="fa-solid fa-camera"></i>지금 시작하기</a>
+
+                <a href="/user/login" id="startButton" class="btn btn-primary"><i class="fa-solid fa-camera"></i>지금 시작하기</a>
+
+                {% endif %}
+
               </div>
             </div>
         </div>
