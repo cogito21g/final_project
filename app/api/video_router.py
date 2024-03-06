@@ -35,7 +35,9 @@ async def upload_get(request: Request):
     token = request.cookies.get("access_token", None)
     if token:
         token = ast.literal_eval(token)
-        #print(token, type(token))
+    else:
+        return RedirectResponse(url='/user/login')
+
     return templates.TemplateResponse("video.html", {'request': request, 'token': token})
 
 # @router.post("")
