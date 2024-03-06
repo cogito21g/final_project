@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
+import ast
 
 from datetime import timedelta, datetime
 from sqlalchemy.orm import Session
@@ -29,7 +30,12 @@ settings = get_settings()
 @app.get("/")
 async def main_get(request:Request):
 	token = request.cookies.get("access_token", None)
-	return templates.TemplateResponse("main.html", {'request': request, "token": token})
+	
+	if token:
+		token = ast.literal_eval(token)
+		return templates.TemplateResponse("main.html", {'request': request, 'token': token})
+	else:
+		return templates.TemplateResponse("main.html", {'request': request})
 
 @app.post("/")
 async def main_post(request: Request):
@@ -65,4 +71,4 @@ app.include_router(video_router.router)
 app.include_router(real_time_router.router)
 
 if __name__ == '__main__':
-	uvicorn.run("main:app", host='0.0.0.0', port=30011, reload=True)
+	uvicorn.run("main:app", host='0.0.0.0', port=30150, reload=True)
