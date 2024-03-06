@@ -68,9 +68,9 @@
         </div>
     </nav>
 
-        <div class="container mt-5">
-        <h2>이상행동을 탐지할 동영상을 업로드 해주세요.</h2>
-        <form id="myForm" action="/upload" method="post" enctype="multipart/form-data">
+    <div class="container mt-5">
+        <h2>이상행동을 탐지할 cctv를 연결 해주세요.</h2>
+        <form id="myForm">
             <div class="mb-3">
                 <label for="videoName" class="form-label">가게 이름</label>
                 <input type="text" class="form-control" id="storeName" name="name" placeholder="가게 이름을 입력하세요." required>
@@ -84,18 +84,30 @@
                 <input id="customRange2" type="range" class="form-range" min="0" max="1" step="0.1" list="tickmarks" name="thr">
             </div>
             <div class="mb-3">
-                <label for="file" class="form-label">파일 선택</label>
-                <input type="file" class="form-control" id="file" name="upload_file">
+                <label for="realTimeVideo" class="form-label">실시간 영상 URL</label>
+                <input type="url" class="form-control" id="realTimeVideo" name="real_time_video" placeholder="실시간 영상 URL을 입력하세요.">
             </div>
-            <button type="submit" class="btn btn-primary" >탐지 시작</button>
-            <!-- <button type="button" class="btn btn-primary" onclick="redirectToRealTime()">실시간 탐지</button> -->
+            <button type="submit" class="btn btn-primary">탐지 시작</button>
         </form>
         
-        <!-- <script>
-            function redirectToRealTime() {
-                window.location.href = "/real_time";
+        <script>
+            function loadRealTimeVideo() {
+                var videoUrl = document.getElementById('realTimeVideo').value;
+                var videoElement = document.createElement('video');
+                
+                videoElement.setAttribute('controls', 'controls');
+                videoElement.setAttribute('width', '640');
+                videoElement.setAttribute('height', '360');
+        
+                var sourceElement = document.createElement('source');
+                sourceElement.setAttribute('src', videoUrl);
+                sourceElement.setAttribute('type', 'video/mp4');
+        
+                videoElement.appendChild(sourceElement);
+        
+                document.body.appendChild(videoElement);
             }
-        </script> -->
+        </script>
     </div>
     
     <!-- Bootstrap Bundle with Popper -->

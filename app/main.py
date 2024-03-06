@@ -8,10 +8,12 @@ from datetime import timedelta, datetime
 from sqlalchemy.orm import Session
 from starlette import status
 
-# from api.album_router import router 
 from api import user_router
-# from api.video_router import video_router
-# from api.upload_router import upload_router
+from api import upload_router
+from api import video_router
+from api import real_time_router
+from api import album_router
+
 from db.database import get_db, db_engine
 from models import models
 from crud.crud import pwd_context
@@ -50,25 +52,17 @@ async def main_post(request: Request):
     }
 	
 	template_response = templates.TemplateResponse('main.html', {'request': request, 'token': token})
+ 
     # 쿠키 저장
 	template_response.set_cookie(key="access_token", value=token, expires=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), httponly=True)
     
 	return template_response
 
 app.include_router(user_router.router)
-
-# @app.get('/upload')
-# async def upload(request:Request):
-# 	return templates.TemplateResponse('upload.html',{'request': request})
-
-# app.include_router(upload_router.router)
-
-# @app.get('/album')
-# async def album(request:Request):
-# 	return templates.TemplateResponse('album.html',{'request': request})
-
-# app.include_router(router.router)
-
+app.include_router(upload_router.router)
+app.include_router(album_router.router)
+app.include_router(video_router.router)
+app.include_router(real_time_router.router)
 
 if __name__ == '__main__':
 	uvicorn.run("main:app", host='0.0.0.0', port=30011, reload=True)

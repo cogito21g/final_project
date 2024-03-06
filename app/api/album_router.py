@@ -1,94 +1,89 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import timedelta, datetime, date
+from typing import Optional
+import ast
+
+from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 
-from db.database import get_db
+from core.config import get_settings
+from db.database import get_db, db_engine
+from models import models
 from crud import crud
+from crud.crud import pwd_context
 from schemas import schemas
-from models.models import User
 
 from api.user_router import get_current_user
+import boto3
+from botocore.config import Config
 
+settings = get_settings()
+
+templates = Jinja2Templates(directory="templates")
 router = APIRouter(
     prefix="/album",
 )
 
+boto_config = Config(
+    signature_version = 'v4',
+)
+s3 = boto3.client("s3",
+                  config=boto_config,
+                  region_name='ap-northeast-2',
+                  aws_access_key_id=settings.AWS_ACCESS_KEY,
+                  aws_secret_access_key=settings.AWS_SECRET_KEY)
 
-@router.get("/")
-def album_list(db: Session = Depends(get_db),
-               current_user: User = Depends(get_current_user)):
-    user_id = current_user.user_id
-    upload_list = crud.get_uploads(
-        db=db, user_id=user_id)
+
+@router.get("")
+async def upload_get(request: Request,
+                     db: Session = Depends(get_db)):
+    token = request.cookies.get("access_token", None)
+    if token:
+        token = ast.literal_eval(token)
+        #print(token, type(token))
+    email = token['email']
     
-    return {
-        'user_id': user_id,
-        'total': len(upload_list),
-        'upload_list': upload_list
+    user = crud.get_user_by_email(db=db, email=email)
+    album_list = crud.get_uploads(db=db, user_id=user.user_id)
+    
+    return templates.TemplateResponse("album.html", {'request': request, 'token': token, 'album_list':album_list})
+
+
+@router.get("/details")
+async def upload_get_one(request: Request,
+    user_id: int = Query(...),
+    upload_id: int = Query(...),
+    db: Session = Depends(get_db)
+    ):
+    
+    token = request.cookies.get("access_token", None)
+    if token:
+        token = ast.literal_eval(token)
+    video = crud.get_video(db=db, upload_id=upload_id)
+    uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
+    frames = crud.get_frames(db=db, video_id=video.video_id)
+    #obj = f"https://{settings.BUCKET}.s3.ap-northeast-2.amazonaws.com/{video_url}"
+    obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': video.video_url},
+                                    ExpiresIn=3600)
+    obj_frame = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': '/'.join(video.video_url.split('/')[:-1])},
+                                    ExpiresIn=3600)
+    print(obj)
+    video_info = {
+        "user_id": user_id,
+        "upload_id": upload_id,
+        "date": uploaded.date,
+        "upload_name": uploaded.name,
+        "video_url": obj,
+        "frames": frames
     }
-
-# @router.get("/detail/{upload_id}", response_model=schemas.Upload)
-# def question_detail(upload_id: int, db: Session = Depends(get_db)):
-#     question = question_crud.get_question(db, question_id=question_id)
-#     return question
-
-
-# @router.post("/create", status_code=status.HTTP_204_NO_CONTENT)
-# def question_create(_question_create: question_schema.QuestionCreate,
-#                     db: Session = Depends(get_db),
-#                     current_user: User = Depends(get_current_user)):
-#     question_crud.create_question(db=db, question_create=_question_create,
-#                                   user=current_user)
-
-
-# @router.put("/update", status_code=status.HTTP_204_NO_CONTENT)
-# def question_update(_question_update: question_schema.QuestionUpdate,
-#                     db: Session = Depends(get_db),
-#                     current_user: User = Depends(get_current_user)):
-#     db_question = question_crud.get_question(db, question_id=_question_update.question_id)
-#     if not db_question:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="데이터를 찾을수 없습니다.")
-#     if current_user.id != db_question.user.id:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="수정 권한이 없습니다.")
-#     question_crud.update_question(db=db, db_question=db_question,
-#                                   question_update=_question_update)
-
-
-# @router.delete("/delete", status_code=status.HTTP_204_NO_CONTENT)
-# def question_delete(_question_delete: question_schema.QuestionDelete,
-#                     db: Session = Depends(get_db),
-#                     current_user: User = Depends(get_current_user)):
-#     db_question = question_crud.get_question(db, question_id=_question_delete.question_id)
-#     if not db_question:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="데이터를 찾을수 없습니다.")
-#     if current_user.id != db_question.user.id:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="삭제 권한이 없습니다.")
-#     question_crud.delete_question(db=db, db_question=db_question)
-
-
-# @router.post("/vote", status_code=status.HTTP_204_NO_CONTENT)
-# def question_vote(_question_vote: question_schema.QuestionVote,
-#                   db: Session = Depends(get_db),
-#                   current_user: User = Depends(get_current_user)):
-#     db_question = question_crud.get_question(db, question_id=_question_vote.question_id)
-#     if not db_question:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="데이터를 찾을수 없습니다.")
-#     question_crud.vote_question(db, db_question=db_question, db_user=current_user)
-
-
-# # async examples
-# @router.get("/async_list")
-# async def async_question_list(db: Session = Depends(get_async_db)):
-#     result = await question_crud.get_async_question_list(db)
-#     return result
-
-
-# @router.post("/async_create", status_code=status.HTTP_204_NO_CONTENT)
-# async def async_question_create(_question_create: question_schema.QuestionCreate,
-#                                 db: Session = Depends(get_async_db)):
-#     await question_crud.async_create_question(db, question_create=_question_create)
+    
+    return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': video_info})

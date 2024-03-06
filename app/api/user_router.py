@@ -67,6 +67,7 @@ async def logout_get(request: Request):
         template.delete_cookie(key="access_token")
     return template
 
+
 def get_current_user(token: str = Depends(oauth2_scheme),
                      db: Session = Depends(get_db)):
     credentials_exception = HTTPException(

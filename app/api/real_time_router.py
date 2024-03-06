@@ -1,10 +1,9 @@
 from datetime import timedelta, datetime, date
-from typing import Optional
 import ast
-import os
 import uuid
+import os
 
-from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query
+from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Query
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Depends
@@ -28,7 +27,7 @@ settings = get_settings()
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
-    prefix="/upload",
+    prefix="/real_time",
 )
 
 boto_config = Config(
@@ -41,12 +40,9 @@ s3 = boto3.client("s3",
                   aws_secret_access_key=settings.AWS_SECRET_KEY)
 
 @router.get("")
-async def upload_get(request: Request):
+async def real_time_get(request: Request):
     token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
-        #print(token, type(token))
-    return templates.TemplateResponse("upload.html", {'request': request, 'token': token})
+    return templates.TemplateResponse("real_time.html", {'request': request, "token": token})
 
 @router.post("")
 async def upload_post(request: Request,

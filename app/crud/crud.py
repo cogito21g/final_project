@@ -57,16 +57,22 @@ def delete_upload(db: Session, upload_id: int):
         return True
     return False
 
+def get_upload(db: Session, upload_id: int):
+    return db.query(models.Upload).filter(models.Upload.upload_id==upload_id).first()
+
 def get_upload_id(db: Session, user_id: int, name: str, date: date,):
     return db.query(models.Upload).filter(
-        (models.Upload.user_id == user_id) |
-        (models.Upload.name == name) |
+        (models.Upload.user_id == user_id) &
+        (models.Upload.name == name) &
         (models.Upload.date == date)
-        ).first()
+        ).all()
 
 def get_uploads(db: Session, user_id: int):
     return db.query(models.Upload).filter(
         models.Upload.user_id == user_id).all()
+    
+def get_upload_by_name(db: Session, name: str):
+    return db.query(models.Upload).filter(models.Upload.name == name).first()
 
 ## Video
 def create_video(db: Session, video: VideoCreate):
@@ -76,8 +82,9 @@ def create_video(db: Session, video: VideoCreate):
     db.refresh(db_video)
     return db_video
 
-def get_video(db: Session, video_id: int):
-    return db.query(models.Video).filter(models.Video.video_id == video_id).first()
+def get_video(db: Session, upload_id: int):
+    return db.query(models.Video).filter(
+        models.Video.upload_id == upload_id).first()
 
 ## Frame
 def create_frame(db: Session, frame: FrameCreate):
@@ -90,6 +97,6 @@ def create_frame(db: Session, frame: FrameCreate):
 def get_frame(db: Session, frame_id: int):
     return db.query(models.Frame).filter(models.Frame.frame_id == frame_id).first()
 
-def get_frames(db: Session, skip: int = 0, limit: int = 500):
-    return db.query(models.Frame).offset(skip).limit(limit).all()
+def get_frames(db: Session, video_id: int):
+    return db.query(models.Frame).filter(models.Frame.video_id == video_id).all()
 
