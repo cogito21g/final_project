@@ -42,6 +42,11 @@ s3 = boto3.client("s3",
 @router.get("")
 async def real_time_get(request: Request):
     token = request.cookies.get("access_token", None)
+    if token:
+        token = ast.literal_eval(token)
+    else:
+        return RedirectResponse(url='/user/login')
+    
     return templates.TemplateResponse("real_time.html", {'request': request, "token": token})
 
 @router.post("")
