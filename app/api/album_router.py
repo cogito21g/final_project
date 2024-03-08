@@ -1,7 +1,4 @@
-
 from datetime import timedelta, datetime, date
-from typing import Optional
-import ast
 
 from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query, Depends
 from fastapi.responses import RedirectResponse
@@ -11,17 +8,14 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
-import ast
+
 
 from utils.config import get_settings
 from database.database import get_db, db_engine
-from database import models
 
 from database import crud
 from database.crud import pwd_context
-from schemas import schemas
 
-# from models import models
 from api.user_router import get_current_user
 import boto3
 from botocore.config import Config
@@ -127,9 +121,7 @@ async def image_get(request: Request,
                     db: Session = Depends(get_db)
                     ):
     
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
+    user = get_current_user(request)
     frame = crud.get_frame(db=db, frame_id=frame_id)
     frame_obj = s3.generate_presigned_url('get_object',
                                     Params={'Bucket': settings.BUCKET,
@@ -143,5 +135,5 @@ async def image_get(request: Request,
         'frame_json': frame.box_kp_json
     }
     
-    return templates.TemplateResponse("frame.html", {'request': request, 'token': token, 'frame_info': frame_info})
+    return templates.TemplateResponse("frame.html", {'request': request, 'token': user, 'frame_info': frame_info})
     

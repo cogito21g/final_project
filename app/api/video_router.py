@@ -1,19 +1,15 @@
 from datetime import timedelta, datetime, date
 from typing import Optional
-import ast
 
 from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 
 from utils.config import get_settings
 from database.database import get_db, db_engine
-from database import models
 from database import crud
 from database.crud import pwd_context
 from schemas import schemas
@@ -32,13 +28,11 @@ s3 = boto3.client("s3",aws_access_key_id=settings.AWS_ACCESS_KEY ,aws_secret_acc
 
 @router.get("")
 async def upload_get(request: Request):
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
-    else:
+    user = get_current_user(request)
+    if not user:
         return RedirectResponse(url='/user/login')
 
-    return templates.TemplateResponse("video.html", {'request': request, 'token': token})
+    return templates.TemplateResponse("video.html", {'request': request, 'token': user})
 
 # @router.post("")
 # async def upload_post(request: Request,
@@ -46,9 +40,7 @@ async def upload_get(request: Request):
 #                     date: date = Form(...),
 #                     thr: float = Form(...),
 #                     db: Session = Depends(get_db)):
-#     token = request.cookies.get("access_token", None)
-#     token = ast.literal_eval(token)
-#     email = token['email']
+    #   email = get_current_user(request)
     
 #     user = crud.get_user_by_email(db=db, email=email)
 #     _upload_create = schemas.UploadCreate(name=name, date=date,
@@ -83,4 +75,4 @@ async def upload_get(request: Request):
 #         "video_url": video_url
 #     }
     
-#     return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'body': body})
+#     return templates.TemplateResponse("video.html", {'request': request, 'token': email, 'body': body})

@@ -1,15 +1,10 @@
-from typing import Union
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
-import ast
 
 from datetime import timedelta, datetime
-from sqlalchemy.orm import Session
-from starlette import status
-
 
 from api import user_router
 from api import upload_router
@@ -21,7 +16,8 @@ from database.database import get_db, db_engine
 from database import models
 from database.crud import pwd_context
 from utils.config import get_settings
-from jose import jwt, JWTError
+from jose import jwt
+
 
 templates = Jinja2Templates(directory="templates")
 

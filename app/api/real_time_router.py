@@ -1,5 +1,4 @@
 from datetime import timedelta, datetime, date
-import ast
 import uuid
 import os
 
@@ -7,14 +6,11 @@ from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFil
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 
 from utils.config import get_settings
 from database.database import get_db, db_engine
-from database import models
 from database import crud
 from database.crud import pwd_context
 from schemas import schemas

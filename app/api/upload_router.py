@@ -1,15 +1,12 @@
 from datetime import timedelta, datetime, date
 from typing import Optional
-import ast
 import os
 import uuid
-import asyncio
 
 from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Depends, BackgroundTasks
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
@@ -142,9 +139,7 @@ def run_model(video_url, upload_file, info, s3, settings, db):
 #     db: Session = Depends(get_db)
 #     ):
     
-#     token = request.cookies.get("access_token", None)
-#     if token:
-#         token = ast.literal_eval(token)
+    # token = get_current_user(request)
     
 #     video_url = crud.get_video(db=db, upload_id=upload_id).video_url
 #     video_id = crud.get_video(db=db, upload_id=upload_id).video_id

@@ -14,7 +14,7 @@ from database.database import get_db, db_engine
 from database import models
 from database import crud
 from database.crud import pwd_context
-from schemas import schemas
+
 
 settings = get_settings()
 
