@@ -1,6 +1,7 @@
 from typing import Union
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
 import ast
@@ -24,6 +25,7 @@ from jose import jwt, JWTError
 templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 settings = get_settings()
 
@@ -71,4 +73,4 @@ app.include_router(video_router.router)
 app.include_router(real_time_router.router)
 
 if __name__ == '__main__':
-	uvicorn.run("main:app", host='0.0.0.0', port=30150, reload=True)
+	uvicorn.run("main:app", host='0.0.0.0', port=30011, reload=True)

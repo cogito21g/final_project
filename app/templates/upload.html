@@ -53,12 +53,12 @@
                 <input type="text" class="form-control" id="storeName" name="name" placeholder="가게 이름을 입력하세요." required>
             </div>
             <div class="mb-3">
-                <label for="dataInput" class="form-label">동영상 날짜</label>
-                <input type="date" class="form-control" id="dateInput" name="date" required>
+                <label for="datetimeInput" class="form-label">동영상 날짜 및 시간</label>
+                <input type="datetime-local" class="form-control" id="datetimeInput" name="datetime" required>
             </div>
             <div>
                 <label for="customRange2" class="form-label">Score Threshold</label>
-                <input id="customRange2" type="range" class="form-range" min="0" max="1" step="0.1" list="tickmarks" name="thr">
+                <input id="customRange2" type="range" class="form-range" min="0" max="0.1" step="0.01" list="tickmarks" name="thr">
             </div>
             <div class="mb-3">
                 <label for="file" class="form-label">파일 선택</label>

@@ -53,6 +53,7 @@
                   <tr>
                     <th scope="col">#</th>
                     <th scope="col">이름</th>
+                    <th scope="col">날짜&시간</th>
                     <th scope="col">이상탐지</th>
                     <th scope="col">Button</th>
                   </tr>
@@ -66,6 +67,9 @@
                             <a href="#" onclick="redirectToDetails('{{ upload.user_id }}', '{{ upload.upload_id }}')">
                                 {{ upload.name }}
                             </a>
+                        </td>
+                        <td>
+                            {{ upload.date }}
                         </td>
                         <td>
                             {% if upload.is_realtime %}

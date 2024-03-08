@@ -21,6 +21,7 @@ from schemas import schemas
 from api.user_router import get_current_user
 import boto3
 from botocore.config import Config
+import json
 
 settings = get_settings()
 
@@ -66,26 +67,80 @@ async def upload_get_one(request: Request,
     token = request.cookies.get("access_token", None)
     if token:
         token = ast.literal_eval(token)
+        
+    if not crud.get_complete(db=db, upload_id=upload_id).completed:
+        return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': {}, 'loading': True})
+        
     video = crud.get_video(db=db, upload_id=upload_id)
     uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
-    frames = crud.get_frames(db=db, video_id=video.video_id)
+    #frames = crud.get_frames(db=db, video_id=video.video_id)
+    frames = crud.get_frames_with_highest_score(db=db, video_id=video.video_id)
+    frame_ids = [frame.frame_id for frame in frames]
+    frame_urls = [frame.frame_url for frame in frames]
+    frame_timestamps = [frame.time_stamp for frame in frames]
+    frame_objs = []
+    
     #obj = f"https://{settings.BUCKET}.s3.ap-northeast-2.amazonaws.com/{video_url}"
-    obj = s3.generate_presigned_url('get_object',
+    video_obj = s3.generate_presigned_url('get_object',
                                     Params={'Bucket': settings.BUCKET,
                                             'Key': video.video_url},
                                     ExpiresIn=3600)
-    obj_frame = s3.generate_presigned_url('get_object',
+    
+    for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
+        frame_obj = s3.generate_presigned_url('get_object',
                                     Params={'Bucket': settings.BUCKET,
-                                            'Key': '/'.join(video.video_url.split('/')[:-1])},
+                                            'Key': frame_url},
                                     ExpiresIn=3600)
-    print(obj)
+        frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
+    
+    score_graph_url = '/'.join(frame_urls[0].split('/')[:-1]) + '/score_graph.png'
+    #print(f'score_graph_url >>> {score_graph_url}')
+    score_obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': score_graph_url},
+                                    ExpiresIn=3600)
+    
+    #print(obj)
+    
     video_info = {
         "user_id": user_id,
         "upload_id": upload_id,
-        "date": uploaded.date,
+        "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
         "upload_name": uploaded.name,
-        "video_url": obj,
-        "frames": frames
+        "video_id": video.video_id,
+        "video_url": video_obj,
+        "frame_urls": frame_objs,
+        "score_url": score_obj
     }
     
-    return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': video_info})
+    #video_info = json.dumps(video_info)
+    #print(video_info.video_url)
+    #print(frame_objs[0])
+    
+    return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': video_info, 'loading': False})
+
+
+@router.get("/details/images")
+async def image_get(request: Request,
+                    frame_id: int = Query(...),
+                    db: Session = Depends(get_db)
+                    ):
+    
+    token = request.cookies.get("access_token", None)
+    if token:
+        token = ast.literal_eval(token)
+    frame = crud.get_frame(db=db, frame_id=frame_id)
+    frame_obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': frame.frame_url},
+                                    ExpiresIn=3600)
+    print(frame_obj)
+    print(frame.box_kp_json)
+    frame_info = {
+        'frame_url': frame_obj,
+        'time_stamp': frame.time_stamp,
+        'frame_json': frame.box_kp_json
+    }
+    
+    return templates.TemplateResponse("frame.html", {'request': request, 'token': token, 'frame_info': frame_info})
+    

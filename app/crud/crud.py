@@ -1,8 +1,9 @@
 from datetime import timedelta, datetime, date
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy import func
 from passlib.context import CryptContext
 from models import models
-from schemas.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate
+from schemas.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
 
 from core.security import get_password_hash, verify_password
 from models.models import User
@@ -60,7 +61,7 @@ def delete_upload(db: Session, upload_id: int):
 def get_upload(db: Session, upload_id: int):
     return db.query(models.Upload).filter(models.Upload.upload_id==upload_id).first()
 
-def get_upload_id(db: Session, user_id: int, name: str, date: date,):
+def get_upload_id(db: Session, user_id: int, name: str, date: datetime,):
     return db.query(models.Upload).filter(
         (models.Upload.user_id == user_id) &
         (models.Upload.name == name) &
@@ -69,7 +70,7 @@ def get_upload_id(db: Session, user_id: int, name: str, date: date,):
 
 def get_uploads(db: Session, user_id: int):
     return db.query(models.Upload).filter(
-        models.Upload.user_id == user_id).all()
+        models.Upload.user_id == user_id).order_by(models.Upload.upload_id.desc()).all()
     
 def get_upload_by_name(db: Session, name: str):
     return db.query(models.Upload).filter(models.Upload.name == name).first()
@@ -100,3 +101,48 @@ def get_frame(db: Session, frame_id: int):
 def get_frames(db: Session, video_id: int):
     return db.query(models.Frame).filter(models.Frame.video_id == video_id).all()
 
+def get_frames_with_highest_score(db: Session, video_id: int):
+    
+    subquery = (
+        db.query(
+            models.Frame.video_id,
+            models.Frame.time_stamp,
+            func.max(models.Frame.score).label('max_score')
+        )
+        .group_by(models.Frame.video_id, models.Frame.time_stamp)
+        .subquery()
+    )
+    
+    subq_alias = aliased(subquery)
+
+    frames = (
+        db.query(models.Frame)
+        .join(
+            subq_alias,
+            (models.Frame.video_id == subq_alias.c.video_id) &
+            (models.Frame.time_stamp == subq_alias.c.time_stamp) &
+            (models.Frame.score == subq_alias.c.max_score)
+        )
+        .filter(models.Frame.video_id == video_id)
+        .all()
+    )
+
+    return frames
+
+def create_complete(db: Session, complete: Complete):
+    db_complete = models.Complete(**complete.dict())
+    db.add(db_complete)
+    db.commit()
+    db.refresh(db_complete)
+    return db_complete
+
+def get_complete(db: Session, upload_id: int):
+    return db.query(models.Complete).filter(models.Complete.upload_id == upload_id).first()
+
+def update_complete_status(db: Session, upload_id: int):
+    
+    complete_record = db.query(models.Complete).filter(models.Complete.upload_id == upload_id).first()
+
+    if complete_record and not complete_record.completed:
+        complete_record.completed = True
+        db.commit()

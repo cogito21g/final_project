@@ -50,7 +50,7 @@ async def real_time_get(request: Request):
     return templates.TemplateResponse("real_time.html", {'request': request, "token": token})
 
 @router.post("")
-async def upload_post(request: Request,
+async def real_time_post(request: Request,
                     name: str = Form(...),
                     upload_file: UploadFile = File(...),
                     date: date = Form(...),
