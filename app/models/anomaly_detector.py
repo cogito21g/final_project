@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from fastapi import HTTPException
 from starlette import status
-from crud import crud
+from database import crud
 from schemas import schemas
 
 import os

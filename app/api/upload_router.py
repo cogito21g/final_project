@@ -14,12 +14,12 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 
-from core.config import get_settings
-from db.database import get_db, db_engine
-from models import models
+from utils.config import get_settings
+from database.database import get_db, db_engine
+from database import models
 from models.anomaly_detector import AnomalyDetector
-from crud import crud
-from crud.crud import pwd_context
+from database import crud
+from database.crud import pwd_context
 from schemas import schemas
 
 from api.user_router import get_current_user
@@ -44,13 +44,11 @@ s3 = boto3.client("s3",
 
 @router.get("")
 async def upload_get(request: Request):
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
-    else:
+    user = get_current_user(request)
+    if not user:
         return RedirectResponse(url='/user/login')
 
-    return templates.TemplateResponse("upload.html", {'request': request, 'token': token})
+    return templates.TemplateResponse("upload.html", {'request': request, 'token': user})
 
 @router.post("")
 async def upload_post(request: Request,
@@ -62,9 +60,7 @@ async def upload_post(request: Request,
                     db: Session = Depends(get_db)):
     
     # token 정보 가져오기 -> email 을 통해 user_id 획득
-    token = request.cookies.get("access_token", None)
-    token = ast.literal_eval(token)
-    email = token['email']
+    email = get_current_user(request)
 
     # email 을 통해 user 객체 획득(id, email 포함)
     user = crud.get_user_by_email(db=db, email=email)

@@ -17,35 +17,31 @@ from api import video_router
 from api import real_time_router
 from api import album_router
 
-from db.database import get_db, db_engine
-from models import models
-from crud.crud import pwd_context
-from core.config import get_settings
+from database.database import get_db, db_engine
+from database import models
+from database.crud import pwd_context
+from utils.config import get_settings
 from jose import jwt, JWTError
 
 templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="templates/static"), name="static")
 
 settings = get_settings()
 
+
 @app.get("/")
 async def main_get(request:Request):
-	token = request.cookies.get("access_token", None)
 
-	if token:
-		payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-		user = payload.get("sub", None)
-		return templates.TemplateResponse("main.html", {'request': request, 'token': user})
-	else:
-		return templates.TemplateResponse("main.html", {'request': request, 'token': token})
+	user = user_router.get_current_user(request)
+	
+	return templates.TemplateResponse("main.html", {'request': request, 'token': user})
 
 @app.post("/")
 async def main_post(request: Request):
 	body = await request.form()
 	user = body["email"]
-	# user_info_query = Session(db_engine).query(models.User).filter(models.User.email == body['email']).first()
 	data = {
         "sub": user,
         "exp": datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

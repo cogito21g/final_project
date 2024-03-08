@@ -12,11 +12,11 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 
-from core.config import get_settings
-from db.database import get_db, db_engine
-from models import models
-from crud import crud
-from crud.crud import pwd_context
+from utils.config import get_settings
+from database.database import get_db, db_engine
+from database import models
+from database import crud
+from database.crud import pwd_context
 from schemas import schemas
 
 from api.user_router import get_current_user
@@ -41,13 +41,11 @@ s3 = boto3.client("s3",
 
 @router.get("")
 async def real_time_get(request: Request):
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
-    else:
+    user = get_current_user(request)
+    if not user:
         return RedirectResponse(url='/user/login')
     
-    return templates.TemplateResponse("real_time.html", {'request': request, "token": token})
+    return templates.TemplateResponse("real_time.html", {'request': request, "token": user})
 
 @router.post("")
 async def real_time_post(request: Request,
@@ -56,9 +54,8 @@ async def real_time_post(request: Request,
                     date: date = Form(...),
                     thr: float = Form(...),
                     db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token", None)
-    token = ast.literal_eval(token)
-    email = token['email']
+
+    email = get_current_user(request)
     
     user = crud.get_user_by_email(db=db, email=email)
     # name 중복 예외처리 구현?
@@ -118,9 +115,7 @@ async def video_get(request: Request,
     db: Session = Depends(get_db)
     ):
     
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
+    user = get_current_user(request)
     
     video_url = crud.get_video(db=db, upload_id=upload_id).video_url
     #obj = f"https://{settings.BUCKET}.s3.ap-northeast-2.amazonaws.com/{video_url}"
@@ -138,4 +133,4 @@ async def video_get(request: Request,
         "video_url": obj
     }
     
-    return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': video_info})
+    return templates.TemplateResponse("video.html", {'request': request, 'token': user, 'video_info': video_info})

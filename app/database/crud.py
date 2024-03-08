@@ -2,11 +2,11 @@ from datetime import timedelta, datetime, date
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func
 from passlib.context import CryptContext
-from models import models
+from database import models
 from schemas.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
 
-from core.security import get_password_hash, verify_password
-from models.models import User
+from utils.security import get_password_hash, verify_password
+from database.models import User
 
 ## User
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

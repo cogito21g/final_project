@@ -13,12 +13,12 @@ from sqlalchemy.orm import Session
 from starlette import status
 import ast
 
-from core.config import get_settings
-from db.database import get_db, db_engine
-from models import models
+from utils.config import get_settings
+from database.database import get_db, db_engine
+from database import models
 
-from crud import crud
-from crud.crud import pwd_context
+from database import crud
+from database.crud import pwd_context
 from schemas import schemas
 
 # from models import models
@@ -49,18 +49,14 @@ s3 = boto3.client("s3",
 @router.get("")
 async def upload_get(request: Request,
                      db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
-    else:
+    email = get_current_user(request)
+    if not email:
         return RedirectResponse(url='/user/login')
-    
-    email = token['email']
-    
+        
     user = crud.get_user_by_email(db=db, email=email)
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
     
-    return templates.TemplateResponse("album.html", {'request': request, 'token': token, 'album_list':album_list})
+    return templates.TemplateResponse("album.html", {'request': request, 'token': email, 'album_list':album_list})
 
 
 
@@ -70,13 +66,11 @@ async def upload_get_one(request: Request,
     upload_id: int = Query(...),
     db: Session = Depends(get_db)
     ):
-    
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
+
+    user = get_current_user(request)
         
     if not crud.get_complete(db=db, upload_id=upload_id).completed:
-        return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': {}, 'loading': True})
+        return templates.TemplateResponse("video.html", {'request': request, 'token': user, 'video_info': {}, 'loading': True})
         
     video = crud.get_video(db=db, upload_id=upload_id)
     uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
