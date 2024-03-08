@@ -33,31 +33,26 @@ settings = get_settings()
 @app.get("/")
 async def main_get(request:Request):
 	token = request.cookies.get("access_token", None)
-	
+
 	if token:
-		token = ast.literal_eval(token)
-		return templates.TemplateResponse("main.html", {'request': request, 'token': token})
+		payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+		user = payload.get("sub", None)
+		return templates.TemplateResponse("main.html", {'request': request, 'token': user})
 	else:
-		return templates.TemplateResponse("main.html", {'request': request})
+		return templates.TemplateResponse("main.html", {'request': request, 'token': token})
 
 @app.post("/")
 async def main_post(request: Request):
 	body = await request.form()
 	user = body["email"]
-	
+	# user_info_query = Session(db_engine).query(models.User).filter(models.User.email == body['email']).first()
 	data = {
         "sub": user,
         "exp": datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     }
-	access_token = jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
-	token = {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "email": user
-    }
+	token = jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 	
-	template_response = templates.TemplateResponse('main.html', {'request': request, 'token': token})
+	template_response = templates.TemplateResponse('main.html', {'request': request, 'token': user})
  
     # 쿠키 저장
 	template_response.set_cookie(key="access_token", value=token, expires=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), httponly=True)

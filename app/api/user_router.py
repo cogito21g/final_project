@@ -54,6 +54,7 @@ async def signup_post(request: Request):
             session.add(user_info)
             session.commit()
             session.refresh(user_info)
+            session.close()
             return RedirectResponse(url="/user/login")
     
     return templates.TemplateResponse("signup.html", {"request": request, "err": err_msg})
@@ -79,12 +80,14 @@ async def login_post(request: Request):
     else:
         session = Session(db_engine)
         user_info_query = session.query(models.User).filter(models.User.email == body['email']).first()
+        session.close()
         if not user_info_query:
             err_msg["user"] = "invalid email"
         elif not pwd_context.verify(body['pw'], user_info_query.password):
             err_msg["pw"] = "invalid password"
         else:
             return RedirectResponse(url="/")
+
     return templates.TemplateResponse("login.html", {"request": request, "err": err_msg})
 
 @router.get("/logout")
@@ -93,8 +96,7 @@ async def logout_get(request: Request):
     template = RedirectResponse(url="/")
     if access_token:
         template.delete_cookie(key="access_token")
-    return templates
-
+    return template
 
 def get_current_user(token: str = Depends(oauth2_scheme),
                      db: Session = Depends(get_db)):
