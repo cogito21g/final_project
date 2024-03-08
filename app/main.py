@@ -43,18 +43,10 @@ async def main_get(request:Request):
 @app.post("/")
 async def main_post(request: Request):
 	body = await request.form()
-
-
-	if not body["email"] or not body["pw"]:
-		return RedirectResponse(url="/user/login")
-
+	user = body["email"]
 	
-	user_info_query = Session(db_engine).query(models.User).filter(models.User.email == body['email']).first()
-	if not user_info_query or not pwd_context.verify(body['pw'], user_info_query.password):
-		return RedirectResponse(url="/user/login")
-
 	data = {
-        "sub": user_info_query.email,
+        "sub": user,
         "exp": datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     }
 	access_token = jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
@@ -62,7 +54,7 @@ async def main_post(request: Request):
 	token = {
         "access_token": access_token,
         "token_type": "bearer",
-        "email": user_info_query.email
+        "email": user
     }
 	
 	template_response = templates.TemplateResponse('main.html', {'request': request, 'token': token})

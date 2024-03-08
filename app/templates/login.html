@@ -11,32 +11,25 @@
         <nav class="navbar navbar-expand-lg navbar-light bg-light">
             <div class="container-fluid">
                 <a class="navbar-brand mb-0 h1" href="/">IVT</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
-                        <li class="nav-item">
-                            <a class="nav-link" href="/album">Album</a>
-                        </li>
-                    </ul>
-                </div>
             </div>
         </nav>
 
     <div class="container text-center">
       <div class="row justify-content-center">
-        <form class="row g-3" id="login-form" action="/" method="post" enctype="application/x-www-form-urlencoded">
+        <form class="row g-3" id="login-form" action="/user/login" method="post" enctype="application/x-www-form-urlencoded">
             <div class="col--3">
               <label for="inputEmail4" class="form-label">Email</label>
               <input type="email" class="form-control" id="inputEmail4" placeholder="input email" name="email">
-              {{ err_msg.email }}
+              {% if err.user %}  
+              <p style="color: red;">{{ err.user }}</p>
+              {% endif %}
             </div>
             <div class="col--3">
                 <label for="inputPassword4" class="form-label">Password</label>
                 <input type="password" class="form-control" id="inputPassword4" placeholder="input password" name="pw">
-                {{ err_msg.pw}}
+                {% if err.pw %}  
+                <p style="color: red;">{{ err.pw }}</p>
+                {% endif %}
             </div>
 
             <div class="col-3-12">

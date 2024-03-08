@@ -26,46 +26,74 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/signup")
 async def signup_get(request: Request):
-    return templates.TemplateResponse("signup.html", {"request": request})
+    err_msg = {"user": None, "pw": None, "check_pw": None}
+    return templates.TemplateResponse("signup.html", {"request": request, "err": err_msg})
 
 @router.post("/signup")
 async def signup_post(request: Request):
-    return templates.TemplateResponse("signup.html", {"request": request})
+    body = await request.form()
+    user, pw, check_pw = body["email"], body["pw"], body["check_pw"]
+    err_msg = {"user": None, "pw": None, "check_pw": None}
+
+    if not user:
+        err_msg["user"] = "empty email"
+    elif not pw:
+        err_msg["pw"] = "empty password"
+    elif pw != check_pw:
+        err_msg["check_pw"] = "not equal password and check_password"
+    else:
+        session = Session(db_engine)
+        user = session.query(models.User).filter(models.User.email == body['email']).first()
+            
+        if user:
+            err_msg["user"] = "invalid email"
+        else:
+            user_info = models.User(email = body['email'],
+                                    password = pwd_context.hash(body['pw']))
+                
+            session.add(user_info)
+            session.commit()
+            session.refresh(user_info)
+            return RedirectResponse(url="/user/login")
+    
+    return templates.TemplateResponse("signup.html", {"request": request, "err": err_msg})
 
 @router.get("/login")
 async def login_get(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    err_msg = {"user": None, "pw": None}
+    return templates.TemplateResponse("login.html", {"request": request, "err": err_msg})
 
 @router.post("/login")
 async def login_post(request: Request):
     body = await request.form() 
+    user, pw= body["email"], body["pw"]
+    err_msg = {"user": None, "pw": None}
 
-    with Session(db_engine) as session:
-        user = session.query(models.User).filter(models.User.email == body['email']).first()
-        if user:
-            return RedirectResponse(url='/user/signup')
-        
-        if body['pw'] != body['check_pw']:
-            return RedirectResponse(url='/user/signup')
-        
-        user_info = models.User(email = body['email'],
-                                password = pwd_context.hash(body['pw']))
-        
-        session.add(user_info)
-        session.commit()
-        session.refresh(user_info)
-    
-    return templates.TemplateResponse("login.html", {"request": request})
+    if body.get("check_pw", None):
+        return templates.TemplateResponse("login.html", {"request": request, "err": err_msg})
+
+    if not user:
+        err_msg["user"] = "empty email"
+    elif not pw:
+        err_msg["pw"] = "empty password"
+    else:
+        session = Session(db_engine)
+        user_info_query = session.query(models.User).filter(models.User.email == body['email']).first()
+        if not user_info_query:
+            err_msg["user"] = "invalid email"
+        elif not pwd_context.verify(body['pw'], user_info_query.password):
+            err_msg["pw"] = "invalid password"
+        else:
+            return RedirectResponse(url="/")
+    return templates.TemplateResponse("login.html", {"request": request, "err": err_msg})
 
 @router.get("/logout")
 async def logout_get(request: Request):
-    access_token = request.cookies.get("access_token", None)
-    
-    template = templates.TemplateResponse("main.html", {"request": request})
-
+    access_token = request.cookies.get("access_token", None)    
+    template = RedirectResponse(url="/")
     if access_token:
         template.delete_cookie(key="access_token")
-    return template
+    return templates
 
 
 def get_current_user(token: str = Depends(oauth2_scheme),

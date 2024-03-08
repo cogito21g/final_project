@@ -193,7 +193,7 @@ class AnomalyDetector:
         n_features = 38
         
         # LSTM autoencoder
-        checkpoint = torch.load('/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/pytorch_model.pth')
+        checkpoint = torch.load('/data/ephemeral/home/team_project/app/models/pts/pytorch_model.pth')
         autoencoder_model = LSTMAutoencoder(sequence_length, n_features, prediction_time)
         autoencoder_model.load_state_dict(checkpoint)
         
