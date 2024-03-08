@@ -1,107 +1,153 @@
-from fastapi import Request, APIRouter, Depends, HTTPException
-from fastapi.templating import Jinja2Templates
+
+from datetime import timedelta, datetime, date
+from typing import Optional
+import ast
+
+from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query, Depends
 from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 import ast
 
+from core.config import get_settings
 from db.database import get_db, db_engine
-from crud import crud
-from schemas import schemas
 from models import models
 
+from crud import crud
+from crud.crud import pwd_context
+from schemas import schemas
 
+# from models import models
+from api.user_router import get_current_user
+import boto3
+from botocore.config import Config
+import json
+
+
+settings = get_settings()
+
+templates = Jinja2Templates(directory="templates")
 router = APIRouter(
     prefix="/album",
 )
 templates = Jinja2Templates(directory='templates')
 
+boto_config = Config(
+    signature_version = 'v4',
+)
+s3 = boto3.client("s3",
+                  config=boto_config,
+                  region_name='ap-northeast-2',
+                  aws_access_key_id=settings.AWS_ACCESS_KEY,
+                  aws_secret_access_key=settings.AWS_SECRET_KEY)
+
 
 @router.get("")
-async def album_list(request: Request):
-    # 쿠키의 value를 가져와서
-    # 유효한 클라이언트 -> 업로드 리스트 보여주기
-    # 유효하지 않은 클라이언트 -> root page 다시 띄우기
+async def upload_get(request: Request,
+                     db: Session = Depends(get_db)):
     token = request.cookies.get("access_token", None)
-
     if token:
         token = ast.literal_eval(token)
     else:
-        return RedirectResponse(url='/')
+        return RedirectResponse(url='/user/login')
     
-    # upload list를 DB에서 가져오기
-    # 1) user 테이블에서 user_id를 찾는다.
-    # 2) upload 테이블에서 user_id를 가지고 업로드 된 영상을 전부 찾는다.
-    # 3) upload_list에 쿼리를 담아서 album.html에 context로 보낸다.
-    with Session(db_engine) as session:
-        find_user_query = session.query(models.User).filter(models.User.email == token['email']).first()     # 토큰의 email을 가지고 user 테이블에서 해당 유저 쿼리를 가져온다.
-        upload_list = session.query(models.Upload).filter(models.Upload.user_id == find_user_query.user_id).all()    # 클라이언트의 user_id를 기반으로 upload 테이블에서 업로드 된 정보들을 전부 찾는다.
-
+    email = token['email']
     
-    return templates.TemplateResponse('album.html', {'request': request, 'upload_list': upload_list})
-
-# @router.get("/detail/{upload_id}", response_model=schemas.Upload)
-# def question_detail(upload_id: int, db: Session = Depends(get_db)):
-#     question = question_crud.get_question(db, question_id=question_id)
-#     return question
+    user = crud.get_user_by_email(db=db, email=email)
+    album_list = crud.get_uploads(db=db, user_id=user.user_id)
+    
+    return templates.TemplateResponse("album.html", {'request': request, 'token': token, 'album_list':album_list})
 
 
-# @router.post("/create", status_code=status.HTTP_204_NO_CONTENT)
-# def question_create(_question_create: question_schema.QuestionCreate,
-#                     db: Session = Depends(get_db),
-#                     current_user: User = Depends(get_current_user)):
-#     question_crud.create_question(db=db, question_create=_question_create,
-#                                   user=current_user)
+
+@router.get("/details")
+async def upload_get_one(request: Request,
+    user_id: int = Query(...),
+    upload_id: int = Query(...),
+    db: Session = Depends(get_db)
+    ):
+    
+    token = request.cookies.get("access_token", None)
+    if token:
+        token = ast.literal_eval(token)
+        
+    if not crud.get_complete(db=db, upload_id=upload_id).completed:
+        return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': {}, 'loading': True})
+        
+    video = crud.get_video(db=db, upload_id=upload_id)
+    uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
+    #frames = crud.get_frames(db=db, video_id=video.video_id)
+    frames = crud.get_frames_with_highest_score(db=db, video_id=video.video_id)
+    frame_ids = [frame.frame_id for frame in frames]
+    frame_urls = [frame.frame_url for frame in frames]
+    frame_timestamps = [frame.time_stamp for frame in frames]
+    frame_objs = []
+    
+    #obj = f"https://{settings.BUCKET}.s3.ap-northeast-2.amazonaws.com/{video_url}"
+    video_obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': video.video_url},
+                                    ExpiresIn=3600)
+    
+    for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
+        frame_obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': frame_url},
+                                    ExpiresIn=3600)
+        frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
+    
+    score_graph_url = '/'.join(frame_urls[0].split('/')[:-1]) + '/score_graph.png'
+    #print(f'score_graph_url >>> {score_graph_url}')
+    score_obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': score_graph_url},
+                                    ExpiresIn=3600)
+    
+    #print(obj)
+    
+    video_info = {
+        "user_id": user_id,
+        "upload_id": upload_id,
+        "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
+        "upload_name": uploaded.name,
+        "video_id": video.video_id,
+        "video_url": video_obj,
+        "frame_urls": frame_objs,
+        "score_url": score_obj
+    }
+    
+    #video_info = json.dumps(video_info)
+    #print(video_info.video_url)
+    #print(frame_objs[0])
+    
+    return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': video_info, 'loading': False})
 
 
-# @router.put("/update", status_code=status.HTTP_204_NO_CONTENT)
-# def question_update(_question_update: question_schema.QuestionUpdate,
-#                     db: Session = Depends(get_db),
-#                     current_user: User = Depends(get_current_user)):
-#     db_question = question_crud.get_question(db, question_id=_question_update.question_id)
-#     if not db_question:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="데이터를 찾을수 없습니다.")
-#     if current_user.id != db_question.user.id:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="수정 권한이 없습니다.")
-#     question_crud.update_question(db=db, db_question=db_question,
-#                                   question_update=_question_update)
-
-
-# @router.delete("/delete", status_code=status.HTTP_204_NO_CONTENT)
-# def question_delete(_question_delete: question_schema.QuestionDelete,
-#                     db: Session = Depends(get_db),
-#                     current_user: User = Depends(get_current_user)):
-#     db_question = question_crud.get_question(db, question_id=_question_delete.question_id)
-#     if not db_question:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="데이터를 찾을수 없습니다.")
-#     if current_user.id != db_question.user.id:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="삭제 권한이 없습니다.")
-#     question_crud.delete_question(db=db, db_question=db_question)
-
-
-# @router.post("/vote", status_code=status.HTTP_204_NO_CONTENT)
-# def question_vote(_question_vote: question_schema.QuestionVote,
-#                   db: Session = Depends(get_db),
-#                   current_user: User = Depends(get_current_user)):
-#     db_question = question_crud.get_question(db, question_id=_question_vote.question_id)
-#     if not db_question:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-#                             detail="데이터를 찾을수 없습니다.")
-#     question_crud.vote_question(db, db_question=db_question, db_user=current_user)
-
-
-# # async examples
-# @router.get("/async_list")
-# async def async_question_list(db: Session = Depends(get_async_db)):
-#     result = await question_crud.get_async_question_list(db)
-#     return result
-
-
-# @router.post("/async_create", status_code=status.HTTP_204_NO_CONTENT)
-# async def async_question_create(_question_create: question_schema.QuestionCreate,
-#                                 db: Session = Depends(get_async_db)):
-#     await question_crud.async_create_question(db, question_create=_question_create)
+@router.get("/details/images")
+async def image_get(request: Request,
+                    frame_id: int = Query(...),
+                    db: Session = Depends(get_db)
+                    ):
+    
+    token = request.cookies.get("access_token", None)
+    if token:
+        token = ast.literal_eval(token)
+    frame = crud.get_frame(db=db, frame_id=frame_id)
+    frame_obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': frame.frame_url},
+                                    ExpiresIn=3600)
+    print(frame_obj)
+    print(frame.box_kp_json)
+    frame_info = {
+        'frame_url': frame_obj,
+        'time_stamp': frame.time_stamp,
+        'frame_json': frame.box_kp_json
+    }
+    
+    return templates.TemplateResponse("frame.html", {'request': request, 'token': token, 'frame_info': frame_info})
+    

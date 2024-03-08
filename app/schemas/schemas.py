@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime, time
 
 from pydantic import BaseModel, field_validator, EmailStr
@@ -71,6 +71,7 @@ class Video(VideoCreate):
 class FrameCreate(BaseModel):
     frame_url: str
     time_stamp: time
+    box_kp_json: Dict
     score: float
     video_id: int
 
@@ -79,3 +80,7 @@ class Frame(FrameCreate):
 
     class Config:
         orm_mode = True
+
+class Complete(BaseModel):
+    completed: bool
+    upload_id: int

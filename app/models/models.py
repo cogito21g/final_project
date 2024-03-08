@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Time
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Time, JSON
 from sqlalchemy.orm import relationship, declarative_base, Session
 from db.database import Base
 
@@ -41,7 +41,15 @@ class Frame(Base):
     frame_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     frame_url = Column(String(255), nullable=False)
     time_stamp = Column(Time, nullable=False)
+    box_kp_json = Column(JSON, nullable=False)
     score = Column(Float, nullable=False)
     video_id = Column(Integer, ForeignKey("video.video_id"), nullable=False)
     
     video = relationship("Video", back_populates="frames")
+
+class Complete(Base):
+    __tablename__ = "complete"
+    
+    complete_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    completed = Column(Boolean, default=False)
+    upload_id = Column(Integer, ForeignKey("upload.upload_id"), nullable=False)
