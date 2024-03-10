@@ -43,7 +43,7 @@
             </div>
         </nav>
     
-      <div class="container py-5 text-center">
+      <div class="container text-center">
         <div class="row justify-content-center">
             <table class="table">
                 <thead>
@@ -76,7 +76,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modifyModal">수정</button>
+                            <button class="btn btn-primary btn-sm edit-btn" data-bs-toggle="modal" data-bs-target="#modifyModal" 
+                                    data-uploadid="{{upload.upload_id}}" data-name="{{upload.name}}">수정</button>
                             <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">삭제</button>
                         </td>
                     </tr>
@@ -86,26 +87,33 @@
         </div>
       </div>
 
+    {% if upload_info %}
+    {{ upload_info }}
+    {% endif %}
 
-      <div class="modal fade" id="modifyModal" tabindex="-1" aria-labelledby="modifyModalLabel" aria-hidden="true">
+    <div class="modal fade" id="modifyModal" tabindex="-1" aria-labelledby="modifyModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-            <h1 class="modal-title fs-5" id="exampleModalLabel">Modify</h1>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="modifyModalLabel">Modify</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    변경할 파일 이름을 입력해주세요.
+                    <form id="editForm" action="/album" method="Post">
+                        <input type="hidden" id="checkCode" name="check_code" value="edit">
+                        <input type="hidden" id="uploadID" name="upload_id">
+                        <input type="hidden" id="originName" name="origin_name">
+                        <div class="col--3">
+                            <label for="newFileName" class="form-label">파일 이름</label>
+                            <input type="text" class="form-control" id="newFileName" name="new_name" placeholder="변경할 파일명">
+                        </div>
+                        <div class="modal-footer"></div>
+                        <button type="submit" class="btn btn-primary" >변경</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    </form>
+                </div>
             </div>
-            <div class="modal-body">
-                변경할 파일 이름을 입력해주세요.
-                <div class="col--3">
-                    <label for="fileName" class="form-label">파일 이름</label>
-                    <input type="text" class="form-control" id="fileName" placeholder="변경할 파일명">
-                  </div>
-                <div class="modal-footer">
-            </div>
-                <button type="button" class="btn btn-primary" >변경</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-            </div>
-        </div>
         </div>
     </div>
 
@@ -162,5 +170,20 @@
             // 페이지 리디렉션
             window.location.href = url;
         }
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var editButtons = document.querySelectorAll('.edit-btn');
+
+            editButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var uploadId = this.getAttribute('data-uploadid');
+                    var origin_name = this.getAttribute('data-name');
+
+                    document.getElementById('uploadID').value = uploadId;
+                    document.getElementById('originName').value = origin_name;
+                });
+            });
+        });
     </script>
 </html>
