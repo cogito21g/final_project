@@ -57,6 +57,34 @@ async def upload_get(request: Request,
     return templates.TemplateResponse("album.html", {'request': request, 'token': token, 'album_list':album_list})
 
 
+@router.post("")
+async def modify_name(request: Request,
+                      check_code: str = Form(...),
+                      upload_id: Optional[str] = Form(...),
+                      origin_name: Optional[str] =  Form(...),
+                      new_name: Optional[str] = Form(...),
+                      db: Session = Depends(get_db)):
+    token = request.cookies.get("access_token", None)
+    token = ast.literal_eval(token)
+
+    # upload_id, 기존 이름을 가지고 Upload 테이블에서 쿼리를 가져와서 수정
+    if check_code == "edit":
+        upload_info = db.query(models.Upload).filter((models.Upload.name == origin_name) & 
+                                    (models.Upload.upload_id == upload_id)).first()
+        upload_info.name = new_name
+
+        db.add(upload_info)
+        db.commit()
+        db.refresh(upload_info)
+    elif check_code == "delete":
+        return None
+
+    # album_list를 만들고 끝!
+    user = crud.get_user_by_email(db=db, email=token['email'])
+    album_list = crud.get_uploads(db=db, user_id=user.user_id)
+
+    return templates.TemplateResponse("album.html", {'request': request, 'token': token, 'album_list': album_list})
+
 @router.get("/details")
 async def upload_get_one(request: Request,
     user_id: int = Query(...),
