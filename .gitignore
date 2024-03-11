@@ -21,6 +21,10 @@ datapreprocess/*.csv
 datapreprocess/*.pt
 datapreprocess/*.pth
 datapreprocess/npy
+model_train/code_prac.ipynb
+model_train/model.h5
+model_train/pytorch_model.pth
+model_train/nohup.out
 app/models/*.ipynb
 app/models/nohup.out
 app/models/model.h5

@@ -299,7 +299,9 @@ def train(
 
                     pred = model(x)
 
-                    val_loss = criterion(pred, y)
+                    val_loss = val_criterion(pred, y)
+                    val_loss = torch.mean(val_loss, dim=2)
+                    pred_label = val_loss > 0.02
 
                     total_loss += val_loss
 
