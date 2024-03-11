@@ -13,12 +13,18 @@ ipython_config.py
 #   git rm -r .ipynb_checkpoints/
 datapreprocess/code_prac.ipynb
 datapreprocess/rt_code_test.ipynb
-datapreprocess/csv/*.csv
+datapreprocess/csv/abnormal/train/*.csv
+datapreprocess/csv/abnormal/val/*.csv
+datapreprocess/csv/normal/train/*.csv
+datapreprocess/csv/normal/val/*.csv
 datapreprocess/*.csv
 datapreprocess/*.pt
 datapreprocess/*.pth
 datapreprocess/npy
 app/models/*.ipynb
+app/models/nohup.out
+app/models/model.h5
+app/models/wandb
 app/testitems/
 
 ### macOS ###
