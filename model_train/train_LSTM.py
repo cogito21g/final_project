@@ -11,9 +11,7 @@ import torch.nn.functional as F
 
 from torch.utils.data import Dataset, DataLoader, random_split
 
-# from torch.utils.data import DataLoader
-# from torch.utils.data import random_split
-
+from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import MinMaxScaler
 
 from argparse import ArgumentParser
@@ -183,7 +181,7 @@ def train(
     )
 
     abnormal_loader = DataLoader(
-        dataset=abnormal_dataset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers
+        dataset=abnormal_dataset, batch_size=val_batch_size, shuffle=True, num_workers=val_num_workers
     )
 
     data_load_end = datetime.now()
@@ -297,6 +295,10 @@ def train(
                 total_abnormal_loss = 0
                 total_n_corrects = 0
                 total_abnormal_n_corrects = 0
+                total_auc = 0
+                total_abnormal_auc = 0
+                error_count = 0
+                error_count_abnormal = 0
 
                 for step, (x, y, label) in tqdm(enumerate(valid_loader), total=len(valid_loader)):
                     x, y, label = x.to(device), y.to(device), label.to(device)
@@ -307,6 +309,17 @@ def train(
                     val_loss_rdim = torch.mean(val_loss, dim=2)
                     pred_label = val_loss_rdim > threshold
                     label = label.view(-1, 1)
+
+                    try:
+                        auc = roc_auc_score(pred_label.cpu(), label.cpu())
+                        total_auc += auc
+                    except ValueError:
+                        # print(
+                        #     "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case."
+                        # )
+                        total_auc += 0
+                        error_count += 1
+
                     pred_correct = pred_label == label
                     corrects = torch.sum(pred_correct).item()
 
@@ -317,6 +330,7 @@ def train(
                     total_loss += val_loss
 
                 val_mean_loss = (total_loss / len(valid_loader)).item()
+                val_auc = total_auc / (len(valid_loader) - error_count)
                 val_accuracy = total_n_corrects / valid_data_size
 
                 for step, (x, y, label) in tqdm(enumerate(abnormal_loader), total=len(abnormal_loader)):
@@ -328,6 +342,17 @@ def train(
                     val_loss_rdim = torch.mean(val_loss, dim=2)
                     pred_label = val_loss_rdim > threshold
                     label = label.view(-1, 1)
+
+                    try:
+                        auc = roc_auc_score(pred_label.cpu(), label.cpu())
+                        total_auc += auc
+                    except ValueError:
+                        # print(
+                        #     "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case."
+                        # )
+                        total_auc += 0
+                        error_count_abnormal += 1
+
                     pred_correct = pred_label == label
                     corrects = torch.sum(pred_correct).item()
 
@@ -338,8 +363,12 @@ def train(
                     total_abnormal_loss += val_loss
 
                 val_abnormal_mean_loss = (total_abnormal_loss / len(abnormal_loader)).item()
+                val_abnormal_auc = total_abnormal_auc / (len(abnormal_loader) - error_count_abnormal)
                 val_abnormal_accuracy = total_abnormal_n_corrects / len(abnormal_dataset)
 
+                val_total_auc = (total_auc + total_abnormal_auc) / (
+                    len(valid_loader) + len(abnormal_loader) - error_count - error_count_abnormal
+                )
                 val_total_accuracy = (total_n_corrects + total_abnormal_n_corrects) / (
                     valid_data_size + len(abnormal_dataset)
                 )
@@ -367,8 +396,11 @@ def train(
         new_wandb_metric_dict = {
             "train_loss": epoch_mean_loss,
             "valid_loss": val_mean_loss,
-            "valid_accuracy": val_accuracy,
             "valid_abnormal_loss": val_abnormal_mean_loss,
+            "valid_auc": val_auc,
+            "valid_abnormal_auc": val_abnormal_auc,
+            "valid_normal+abnormal_auc": val_total_auc,
+            "valid_accuracy": val_accuracy,
             "valid_abnormal_accuracy": val_abnormal_accuracy,
             "valid_normal+abnormal_accuracy": val_total_accuracy,
             "learning_rate": scheduler.get_lr()[0],
@@ -382,12 +414,15 @@ def train(
         epoch_time = epoch_end - epoch_start
         epoch_time = str(epoch_time).split(".")[0]
         print(
-            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}\nvalid_accuracy: {val_accuracy:.2f}"
+            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}\nvalid_auc: {val_auc:.4f}\nvalid_accuracy: {val_accuracy:.2f}"
         )
         print(
-            f"valid_abnormal_loss: {round(val_abnormal_mean_loss,4)}\nvalid_abnormal_accuracy: {val_abnormal_accuracy:.2f}"
+            f"valid_abnormal_loss: {round(val_abnormal_mean_loss,4)}\nvalid_abnormal_auc: {val_abnormal_auc:.4f}\nvalid_abnormal_accuracy: {val_abnormal_accuracy:.2f}"
         )
-        print(f"valid_normal+abnormal_accuracy: {val_total_accuracy:.2f}")
+        print(
+            f"valid_normal+abnormal_auc: {val_total_auc:.4f}\nvalid_normal+abnormal_accuracy: {val_total_accuracy:.2f}"
+        )
+        print(f"auc_roc_error_count: {error_count+error_count_abnormal}")
 
         if counter > patience:
             print("Early Stopping...")
