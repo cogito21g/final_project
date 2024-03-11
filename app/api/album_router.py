@@ -60,14 +60,14 @@ async def upload_get(request: Request,
 @router.post("")
 async def modify_name(request: Request,
                       check_code: str = Form(...),
-                      upload_id: Optional[str] = Form(...),
-                      origin_name: Optional[str] =  Form(...),
-                      new_name: Optional[str] = Form(...),
+                      upload_id: Optional[int] = Form(...),
+                      origin_name: Optional[str] =  Form(None),
+                      new_name: Optional[str] = Form(None),
+                      is_real_time: Optional[bool] = Form(None),
                       db: Session = Depends(get_db)):
     token = request.cookies.get("access_token", None)
     token = ast.literal_eval(token)
 
-    # upload_id, 기존 이름을 가지고 Upload 테이블에서 쿼리를 가져와서 수정
     if check_code == "edit":
         upload_info = db.query(models.Upload).filter((models.Upload.name == origin_name) & 
                                     (models.Upload.upload_id == upload_id)).first()
@@ -77,9 +77,16 @@ async def modify_name(request: Request,
         db.commit()
         db.refresh(upload_info)
     elif check_code == "delete":
-        return None
+        # upload 테이블에서만 지우면 SQLAlchemy relationship cascade 설정에 의해
+        # 자식 테이블의 관련된 데이터도 삭제가 된다.
+        upload_info = crud.get_upload(db, upload_id)
+        if upload_info:
+            db.delete(upload_info)
 
-    # album_list를 만들고 끝!
+        db.commit()
+     
+
+    # album_list를 만들고 끝.
     user = crud.get_user_by_email(db=db, email=token['email'])
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
 
