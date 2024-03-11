@@ -387,6 +387,8 @@ def train(
         print(
             f"valid_abnormal_loss: {round(val_abnormal_mean_loss,4)}\nvalid_abnormal_accuracy: {val_abnormal_accuracy:.2f}"
         )
+        print(f"valid_normal+abnormal_accuracy: {val_total_accuracy:.2f}")
+
         if counter > patience:
             print("Early Stopping...")
             break
