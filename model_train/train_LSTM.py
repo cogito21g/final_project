@@ -82,7 +82,7 @@ def parse_args():
 
     parser.add_argument("--save_interval", type=int, default=1)
     parser.add_argument("--val_interval", type=int, default=1)
-    parser.add_argument("--threshold", type=float, default=0.02)
+    parser.add_argument("--thr", type=float, default=0.02)
 
     parser.add_argument("--patience", type=int, default=10)
 
@@ -126,7 +126,7 @@ def train(
     max_epoch,
     val_interval,
     save_interval,
-    threshold,
+    thr,
     patience,
     resume_name,
     seed,
@@ -307,7 +307,7 @@ def train(
 
                     val_loss = val_criterion(pred, y)
                     val_loss_rdim = torch.mean(val_loss, dim=2)
-                    pred_label = val_loss_rdim > threshold
+                    pred_label = val_loss_rdim > thr
                     label = label.view(-1, 1)
 
                     try:
@@ -340,7 +340,7 @@ def train(
 
                     val_loss = val_criterion(pred, y)
                     val_loss_rdim = torch.mean(val_loss, dim=2)
-                    pred_label = val_loss_rdim > threshold
+                    pred_label = val_loss_rdim > thr
                     label = label.view(-1, 1)
 
                     try:
