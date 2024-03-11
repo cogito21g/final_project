@@ -228,7 +228,7 @@ class AbnormalDataset(Dataset):
             json_list = os.listdir(label_root + "/" + folder)
 
             for js in json_list:
-                with open(root + "/" + folder + "/" + js, "r") as j:
+                with open(label_root + "/" + folder + "/" + js, "r") as j:
                     json_dict = json.load(j)
 
                 count = 0
@@ -271,9 +271,9 @@ class AbnormalDataset(Dataset):
         target_labels = []
 
         for target_frame in target_frames:
-            if (
-                target_frame >= self.frame_label[target_filename][0]
-                and target_frame <= self.frame_label[target_filename][1]
+
+            if int(target_frame) >= int(self.frame_label[target_filename][0]) and int(target_frame) <= int(
+                self.frame_label[target_filename][1]
             ):
                 target_labels.append(1)
             else:

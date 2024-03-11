@@ -58,7 +58,7 @@ def parse_args():
             "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal/val",
         ),
     )
-    # json파일 경로
+    # abnormal 검증셋 csv, json파일 경로
     parser.add_argument(
         "--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "/data/ephemeral/home/pths")
     )
@@ -84,6 +84,7 @@ def parse_args():
 
     parser.add_argument("--save_interval", type=int, default=1)
     parser.add_argument("--val_interval", type=int, default=1)
+    parser.add_argument("--threshold", type=float, default=0.02)
 
     parser.add_argument("--patience", type=int, default=10)
 
@@ -127,6 +128,7 @@ def train(
     max_epoch,
     val_interval,
     save_interval,
+    threshold,
     patience,
     resume_name,
     seed,
@@ -293,19 +295,54 @@ def train(
             with torch.no_grad():
                 total_loss = 0
                 total_abnormal_loss = 0
+                total_n_corrects = 0
+                total_abnormal_n_corrects = 0
 
                 for step, (x, y, label) in tqdm(enumerate(valid_loader), total=len(valid_loader)):
-                    x, y = x.to(device), y.to(device)
+                    x, y, label = x.to(device), y.to(device), label.to(device)
 
                     pred = model(x)
 
                     val_loss = val_criterion(pred, y)
-                    val_loss = torch.mean(val_loss, dim=2)
-                    pred_label = val_loss > 0.02
+                    val_loss_rdim = torch.mean(val_loss, dim=2)
+                    pred_label = val_loss_rdim > threshold
+                    label = label.view(-1, 1)
+                    pred_correct = pred_label == label
+                    corrects = torch.sum(pred_correct).item()
+
+                    total_n_corrects += corrects
+
+                    val_loss = torch.mean(val_loss)
 
                     total_loss += val_loss
 
                 val_mean_loss = (total_loss / len(valid_loader)).item()
+                val_accuracy = total_n_corrects / valid_data_size
+
+                for step, (x, y, label) in tqdm(enumerate(abnormal_loader), total=len(abnormal_loader)):
+                    x, y, label = x.to(device), y.to(device), label.to(device)
+
+                    pred = model(x)
+
+                    val_loss = val_criterion(pred, y)
+                    val_loss_rdim = torch.mean(val_loss, dim=2)
+                    pred_label = val_loss_rdim > threshold
+                    label = label.view(-1, 1)
+                    pred_correct = pred_label == label
+                    corrects = torch.sum(pred_correct).item()
+
+                    total_abnormal_n_corrects += corrects
+
+                    val_loss = torch.mean(val_loss)
+
+                    total_abnormal_loss += val_loss
+
+                val_abnormal_mean_loss = (total_abnormal_loss / len(abnormal_loader)).item()
+                val_abnormal_accuracy = total_abnormal_n_corrects / len(abnormal_dataset)
+
+                val_total_accuracy = (total_n_corrects + total_abnormal_n_corrects) / (
+                    valid_data_size + len(abnormal_dataset)
+                )
 
             if best_loss > val_mean_loss:
                 print(f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
@@ -328,8 +365,12 @@ def train(
                 counter += 1
 
         new_wandb_metric_dict = {
-            "valid_loss": val_mean_loss,
             "train_loss": epoch_mean_loss,
+            "valid_loss": val_mean_loss,
+            "valid_accuracy": val_accuracy,
+            "valid_abnormal_loss": val_abnormal_mean_loss,
+            "valid_abnormal_accuracy": val_abnormal_accuracy,
+            "valid_normal+abnormal_accuracy": val_total_accuracy,
             "learning_rate": scheduler.get_lr()[0],
         }
 
@@ -340,7 +381,12 @@ def train(
         epoch_end = datetime.now()
         epoch_time = epoch_end - epoch_start
         epoch_time = str(epoch_time).split(".")[0]
-        print(f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}")
+        print(
+            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}\nvalid_accuracy: {val_accuracy:.2f}"
+        )
+        print(
+            f"valid_abnormal_loss: {round(val_abnormal_mean_loss,4)}\nvalid_abnormal_accuracy: {val_abnormal_accuracy:.2f}"
+        )
         if counter > patience:
             print("Early Stopping...")
             break

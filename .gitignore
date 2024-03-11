@@ -17,6 +17,10 @@ datapreprocess/csv/abnormal/train/*.csv
 datapreprocess/csv/abnormal/val/*.csv
 datapreprocess/csv/normal/train/*.csv
 datapreprocess/csv/normal/val/*.csv
+datapreprocess/json/abnormal/train/
+datapreprocess/json/abnormal/val/
+datapreprocess/json/normal/train/
+datapreprocess/json/normal/val/
 datapreprocess/*.csv
 datapreprocess/*.pt
 datapreprocess/*.pth
@@ -25,10 +29,8 @@ model_train/code_prac.ipynb
 model_train/model.h5
 model_train/pytorch_model.pth
 model_train/nohup.out
-app/models/*.ipynb
-app/models/nohup.out
-app/models/model.h5
-app/models/wandb
+model_train/*.ipynb
+model_train/wandb
 app/testitems/
 
 ### macOS ###
