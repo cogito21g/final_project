@@ -219,6 +219,8 @@ class AbnormalDataset(Dataset):
 
         assert len(id_counter[id_counter < sequence_length + prediction_time].index) == 0
 
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        # TODO: 한 영상에 start end 여러번 있는 경우 고려해서 코드 수정하기
         # 정답 frame 담은 dict 만들기
         self.frame_label = dd(lambda: [-1, -1])
 
@@ -242,6 +244,7 @@ class AbnormalDataset(Dataset):
                         count += 1
                     elif count == 2:
                         break
+        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     def __len__(self):
         return self.length
