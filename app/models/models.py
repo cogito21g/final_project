@@ -24,6 +24,7 @@ class Upload(Base):
     
     user = relationship("User", back_populates="uploads")
     videos = relationship("Video", back_populates="upload", cascade="all, delete-orphan")
+    completes = relationship("Complete", cascade="all, delete-orphan")
 
 class Video(Base):
     __tablename__ = "video"
