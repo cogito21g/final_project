@@ -222,7 +222,7 @@ class AbnormalDataset(Dataset):
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
         # TODO: 한 영상에 start end 여러번 있는 경우 고려해서 코드 수정하기
         # 정답 frame 담은 dict 만들기
-        self.frame_label = dd(lambda: [-1, -1])
+        self.frame_label = dd(lambda: dd(lambda: [-1, -1]))
 
         folder_list = os.listdir(label_root)
 
@@ -233,17 +233,13 @@ class AbnormalDataset(Dataset):
                 with open(label_root + "/" + folder + "/" + js, "r") as j:
                     json_dict = json.load(j)
 
-                count = 0
-
                 for dict in json_dict["annotations"]["track"]:
                     if dict["@label"].endswith("_start"):
-                        self.frame_label[js[:-5]][0] = dict["box"][0]["@frame"]
-                        count += 1
+                        cur_id = dict["@id"]
+                        self.frame_label[js[:-5]][cur_id][0] = dict["box"][0]["@frame"]
                     elif dict["@label"].endswith("_end"):
-                        self.frame_label[js[:-5]][1] = dict["box"][0]["@frame"]
-                        count += 1
-                    elif count == 2:
-                        break
+                        cur_id = dict["@id"]
+                        self.frame_label[js[:-5]][cur_id][1] = dict["box"][0]["@frame"]
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     def __len__(self):
@@ -274,13 +270,14 @@ class AbnormalDataset(Dataset):
         target_labels = []
 
         for target_frame in target_frames:
+            temp = 0
+            for cur_id in self.frame_label[target_filename].keys():
+                if int(target_frame) >= int(self.frame_label[target_filename][cur_id][0]) and int(
+                    target_frame
+                ) <= int(self.frame_label[target_filename][cur_id][1]):
+                    temp = 1
 
-            if int(target_frame) >= int(self.frame_label[target_filename][0]) and int(target_frame) <= int(
-                self.frame_label[target_filename][1]
-            ):
-                target_labels.append(1)
-            else:
-                target_labels.append(0)
+            target_labels.append(temp)
 
         target_labels = torch.LongTensor(target_labels)
 
@@ -304,3 +301,142 @@ class AbnormalDataset(Dataset):
         real_idx = idx + (start * (self.sequence_length + self.prediction_time - 1))
 
         return real_idx
+
+
+class NormalVMAE(Dataset):
+    """
+    is_train = 1 <- train, 0 <- test
+    """
+
+    def __init__(self, is_train=1, path="./UCF-Crime/", modality="TWO"):
+        super().__init__()
+        self.is_train = is_train
+        self.modality = modality
+        self.path = path
+        if self.is_train == 1:
+            data_list = os.path.join(path, "train_normal.txt")
+            with open(data_list, "r") as f:
+                self.data_list = f.readlines()
+        else:
+            data_list = os.path.join(path, "test_normalv2.txt")
+            with open(data_list, "r") as f:
+                self.data_list = f.readlines()
+            # random.shuffle(self.data_list)
+            self.data_list = self.data_list[:-10]
+
+    def __len__(self):
+        return len(self.data_list)
+
+    def __getitem__(self, idx):
+        if self.is_train == 1:
+            rgb_npy = np.load(os.path.join(self.path + "all_rgbs", self.data_list[idx][:-1] + ".npy"))
+            print(f"==>> rgb_npy.shape: {rgb_npy.shape}")
+            flow_npy = np.load(os.path.join(self.path + "all_flows", self.data_list[idx][:-1] + ".npy"))
+            print(f"==>> flow_npy.shape: {flow_npy.shape}")
+            concat_npy = np.concatenate([rgb_npy, flow_npy], axis=1)
+            print(f"==>> concat_npy.shape: {concat_npy.shape}")
+            # print(f"==>> concat_npy: {concat_npy}")
+            if self.modality == "RGB":
+                return rgb_npy
+            elif self.modality == "FLOW":
+                return flow_npy
+            else:
+                return concat_npy
+        else:
+            name, frames, gts = (
+                self.data_list[idx].split(" ")[0],
+                int(self.data_list[idx].split(" ")[1]),
+                int(self.data_list[idx].split(" ")[2][:-1]),
+            )
+            print(f"==>> name: {name}")
+            print(f"==>> frames: {frames}")
+            print(f"==>> gts: {gts}")
+            # Normal_Videos_event/Normal_Videos_897_x264.mp4 876 -1\n
+            # name = Normal_Videos_event/Normal_Videos_897_x264.mp4
+            # frames = 876
+            # gts = -1
+
+            rgb_npy = np.load(os.path.join(self.path + "all_rgbs", name + ".npy"))
+            print(f"==>> rgb_npy.shape: {rgb_npy.shape}")
+            # print(f"==>> rgb_npy: {rgb_npy}")
+            flow_npy = np.load(os.path.join(self.path + "all_flows", name + ".npy"))
+            print(f"==>> flow_npy.shape: {flow_npy.shape}")
+            # print(f"==>> flow_npy: {flow_npy}")
+            concat_npy = np.concatenate([rgb_npy, flow_npy], axis=1)
+            print(f"==>> concat_npy.shape: {concat_npy.shape}")
+            # print(f"==>> concat_npy: {concat_npy}")
+            if self.modality == "RGB":
+                return rgb_npy, gts, frames
+            elif self.modality == "FLOW":
+                return flow_npy, gts, frames
+            else:
+                return concat_npy, gts, frames
+
+
+class AnomalyVMAE(Dataset):
+    """
+    is_train = 1 <- train, 0 <- test
+    """
+
+    def __init__(self, is_train=1, path="./UCF-Crime/", modality="TWO"):
+        super().__init__()
+        self.is_train = is_train
+        self.modality = modality
+        self.path = path
+        if self.is_train == 1:
+            data_list = os.path.join(path, "train_anomaly.txt")
+            with open(data_list, "r") as f:
+                self.data_list = f.readlines()
+        else:
+            data_list = os.path.join(path, "test_anomalyv2.txt")
+            with open(data_list, "r") as f:
+                self.data_list = f.readlines()
+
+    def __len__(self):
+        return len(self.data_list)
+
+    def __getitem__(self, idx):
+        if self.is_train == 1:
+            rgb_npy = np.load(os.path.join(self.path + "all_rgbs", self.data_list[idx][:-1] + ".npy"))
+            print(f"==>> rgb_npy.shape: {rgb_npy.shape}")
+            flow_npy = np.load(os.path.join(self.path + "all_flows", self.data_list[idx][:-1] + ".npy"))
+            print(f"==>> flow_npy.shape: {flow_npy.shape}")
+            concat_npy = np.concatenate([rgb_npy, flow_npy], axis=1)
+            print(f"==>> concat_npy.shape: {concat_npy.shape}")
+            # print(f"==>> concat_npy: {concat_npy}")
+            if self.modality == "RGB":
+                return rgb_npy
+            elif self.modality == "FLOW":
+                return flow_npy
+            else:
+                return concat_npy
+        else:
+            name, frames, gts = (
+                self.data_list[idx].split("|")[0],
+                int(self.data_list[idx].split("|")[1]),
+                self.data_list[idx].split("|")[2][1:-2].split(","),
+            )
+            print(f"==>> name: {name}")
+            print(f"==>> frames: {frames}")
+            print(f"==>> gts: {gts}")
+
+            # Assault/Assault010_x264.mp4|16177|[11330, 11680, 12260, 12930]\n
+            # name = Assault/Assault010_x264.mp4
+            # frames = 16177
+            # gts = ["11330", "11680", "12260", "12930"]
+
+            gts = [int(i) for i in gts]
+            print(f"==>> gts: {gts}")
+            rgb_npy = np.load(os.path.join(self.path + "all_rgbs", name + ".npy"))
+            print(f"==>> rgb_npy.shape: {rgb_npy.shape}")
+            flow_npy = np.load(os.path.join(self.path + "all_flows", name + ".npy"))
+            print(f"==>> flow_npy.shape: {flow_npy.shape}")
+            concat_npy = np.concatenate([rgb_npy, flow_npy], axis=1)
+            print(f"==>> concat_npy.shape: {concat_npy.shape}")
+            # print(f"==>> concat_npy: {concat_npy}")
+            if self.modality == "RGB":
+                return rgb_npy, gts, frames
+            elif self.modality == "FLOW":
+                return flow_npy, gts, frames
+            else:
+                return concat_npy, gts, frames

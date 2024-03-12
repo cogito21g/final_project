@@ -308,10 +308,15 @@ def train(
                     val_loss = val_criterion(pred, y)
                     val_loss_rdim = torch.mean(val_loss, dim=2)
                     pred_label = val_loss_rdim > thr
+                    # pred_sig = F.sigmoid(val_loss_rdim-thr)
                     label = label.view(-1, 1)
 
                     try:
-                        auc = roc_auc_score(pred_label.cpu(), label.cpu())
+                        auc = roc_auc_score(label.cpu(), pred_label.cpu())
+                        # auc = roc_auc_score(label.cpu(), pred_sig.cpu())
+                        # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                        # 정상상황인 경우 label이 항상 전부 0
+                        # => 무조건 "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case." 발생
                         total_auc += auc
                     except ValueError:
                         # print(
@@ -330,7 +335,12 @@ def train(
                     total_loss += val_loss
 
                 val_mean_loss = (total_loss / len(valid_loader)).item()
-                val_auc = total_auc / (len(valid_loader) - error_count)
+                if error_count < len(valid_loader):
+                    val_auc = total_auc / (len(valid_loader) - error_count)
+                else:
+                    # 정상영상은 roc_auc_score 함수 사용 불가 => error_count == len(valid_loader)
+                    val_auc = 0
+                    # ==> vaild_auc는 항상 0
                 val_accuracy = total_n_corrects / valid_data_size
 
                 for step, (x, y, label) in tqdm(enumerate(abnormal_loader), total=len(abnormal_loader)):
@@ -341,16 +351,18 @@ def train(
                     val_loss = val_criterion(pred, y)
                     val_loss_rdim = torch.mean(val_loss, dim=2)
                     pred_label = val_loss_rdim > thr
+                    # pred_sig = F.sigmoid(val_loss_rdim - thr)
                     label = label.view(-1, 1)
 
                     try:
-                        auc = roc_auc_score(pred_label.cpu(), label.cpu())
-                        total_auc += auc
+                        auc = roc_auc_score(label.cpu(), pred_label.cpu())
+                        # auc = roc_auc_score(label.cpu(), pred_sig.cpu())
+                        total_abnormal_auc += auc
                     except ValueError:
                         # print(
                         #     "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case."
                         # )
-                        total_auc += 0
+                        total_abnormal_auc += 0
                         error_count_abnormal += 1
 
                     pred_correct = pred_label == label
