@@ -308,69 +308,58 @@ class NormalVMAE(Dataset):
     is_train = 1 <- train, 0 <- test
     """
 
-    def __init__(self, is_train=1, path="./UCF-Crime/", modality="TWO"):
+    def __init__(
+        self,
+        # is_train=1,
+        model_size="small",
+        root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/normal",
+        # label_root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal",
+    ):
         super().__init__()
-        self.is_train = is_train
-        self.modality = modality
-        self.path = path
-        if self.is_train == 1:
-            data_list = os.path.join(path, "train_normal.txt")
-            with open(data_list, "r") as f:
-                self.data_list = f.readlines()
-        else:
-            data_list = os.path.join(path, "test_normalv2.txt")
-            with open(data_list, "r") as f:
-                self.data_list = f.readlines()
-            # random.shuffle(self.data_list)
-            self.data_list = self.data_list[:-10]
+        # self.is_train = is_train
+        # normal의 경우 torch.utils.data.random_split 함수로 train/val 나눔
+
+        self.path = root
+
+        folder_list = os.listdir(root).sort()
+
+        self.data_list = []
+
+        for folder_name in folder_list:
+            if folder_name.endswith("_base") and model_size == "small":
+                continue
+            elif not folder_name.endswith("_base") and model_size != "small":
+                continue
+
+            folder_path = folder_name + "/"
+            data_list = os.listdir(self.path + folder_path).sort()
+            data_list = [folder_path + name for name in data_list]
+            self.data_list.extend(data_list)
 
     def __len__(self):
         return len(self.data_list)
 
     def __getitem__(self, idx):
-        if self.is_train == 1:
-            rgb_npy = np.load(os.path.join(self.path + "all_rgbs", self.data_list[idx][:-1] + ".npy"))
-            print(f"==>> rgb_npy.shape: {rgb_npy.shape}")
-            flow_npy = np.load(os.path.join(self.path + "all_flows", self.data_list[idx][:-1] + ".npy"))
-            print(f"==>> flow_npy.shape: {flow_npy.shape}")
-            concat_npy = np.concatenate([rgb_npy, flow_npy], axis=1)
-            print(f"==>> concat_npy.shape: {concat_npy.shape}")
-            # print(f"==>> concat_npy: {concat_npy}")
-            if self.modality == "RGB":
-                return rgb_npy
-            elif self.modality == "FLOW":
-                return flow_npy
-            else:
-                return concat_npy
-        else:
-            name, frames, gts = (
-                self.data_list[idx].split(" ")[0],
-                int(self.data_list[idx].split(" ")[1]),
-                int(self.data_list[idx].split(" ")[2][:-1]),
-            )
-            print(f"==>> name: {name}")
-            print(f"==>> frames: {frames}")
-            print(f"==>> gts: {gts}")
-            # Normal_Videos_event/Normal_Videos_897_x264.mp4 876 -1\n
-            # name = Normal_Videos_event/Normal_Videos_897_x264.mp4
-            # frames = 876
-            # gts = -1
+        file_name = self.data_list[idx]
 
-            rgb_npy = np.load(os.path.join(self.path + "all_rgbs", name + ".npy"))
-            print(f"==>> rgb_npy.shape: {rgb_npy.shape}")
-            # print(f"==>> rgb_npy: {rgb_npy}")
-            flow_npy = np.load(os.path.join(self.path + "all_flows", name + ".npy"))
-            print(f"==>> flow_npy.shape: {flow_npy.shape}")
-            # print(f"==>> flow_npy: {flow_npy}")
-            concat_npy = np.concatenate([rgb_npy, flow_npy], axis=1)
-            print(f"==>> concat_npy.shape: {concat_npy.shape}")
-            # print(f"==>> concat_npy: {concat_npy}")
-            if self.modality == "RGB":
-                return rgb_npy, gts, frames
-            elif self.modality == "FLOW":
-                return flow_npy, gts, frames
-            else:
-                return concat_npy, gts, frames
+        feature_npy = np.zeros(60, 710)
+        # 12로 나눌 수 있도록 (60, 710) 준비
+
+        feature_npy[:57] = np.load(self.path + file_name)
+        # np.load로 불러온 정상영상 feature는 (57, 710)
+
+        feature_npy[57:] = (feature_npy[56], feature_npy[56], feature_npy[56])
+        # 정상영상 feature의 57번째 부분으로 빈 자리 채우기
+
+        feature_npy = feature_npy.reshape(12, 5, -1)
+        # (12, 5, 710)
+        feature_npy = np.mean(feature_npy, axis=1)
+        # 이상행동 영상 feature의 (12,710)과 같아지도록 평균으로 조절
+
+        gts = np.zeros(12)
+        # 정상영상은 전부 정답이 0
+
+        return torch.from_numpy(feature_npy).float(), torch.from_numpy(gts).float()
 
 
 class AnomalyVMAE(Dataset):
@@ -378,65 +367,75 @@ class AnomalyVMAE(Dataset):
     is_train = 1 <- train, 0 <- test
     """
 
-    def __init__(self, is_train=1, path="./UCF-Crime/", modality="TWO"):
+    def __init__(
+        self,
+        is_train=1,
+        model_size="small",
+        root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/abnormal",
+        label_root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal",
+    ):
         super().__init__()
         self.is_train = is_train
-        self.modality = modality
-        self.path = path
+
         if self.is_train == 1:
-            data_list = os.path.join(path, "train_anomaly.txt")
-            with open(data_list, "r") as f:
-                self.data_list = f.readlines()
+            self.path = root + "/train/"
+            self.label_path = label_root + "/train/"
         else:
-            data_list = os.path.join(path, "test_anomalyv2.txt")
-            with open(data_list, "r") as f:
-                self.data_list = f.readlines()
+            self.path = root + "/val/"
+            self.label_path = label_root + "/val/"
+
+        # folder_list = os.listdir(root).sort()
+        label_folder_list = os.listdir(self.label_path).sort()
+
+        self.data_list = []
+        self.label_list = dd(lambda: dd(lambda: [-1, -1]))
+
+        for folder_name in label_folder_list:
+            folder_path = (folder_name + "/") if model_size == "small" else (folder_name + "_base/")
+            label_folder_path = self.label_path + folder_name + "/"
+
+            label_list = os.listdir(label_folder_path).sort()
+            data_list = [folder_path + name[:-4] + "mp4.npy" for name in label_list]
+            self.data_list.extend(data_list)
+
+            for js in label_list:
+                with open(label_folder_path + js, "r") as j:
+                    json_dict = json.load(j)
+
+                for dict in json_dict["annotations"]["track"]:
+                    if dict["@label"].endswith("_start"):
+                        cur_id = dict["@id"]
+                        self.label_list[js[:-5]][cur_id][0] = dict["box"][0]["@frame"]
+                    elif dict["@label"].endswith("_end"):
+                        cur_id = dict["@id"]
+                        self.label_list[js[:-5]][cur_id][1] = dict["box"][0]["@frame"]
 
     def __len__(self):
         return len(self.data_list)
 
     def __getitem__(self, idx):
-        if self.is_train == 1:
-            rgb_npy = np.load(os.path.join(self.path + "all_rgbs", self.data_list[idx][:-1] + ".npy"))
-            print(f"==>> rgb_npy.shape: {rgb_npy.shape}")
-            flow_npy = np.load(os.path.join(self.path + "all_flows", self.data_list[idx][:-1] + ".npy"))
-            print(f"==>> flow_npy.shape: {flow_npy.shape}")
-            concat_npy = np.concatenate([rgb_npy, flow_npy], axis=1)
-            print(f"==>> concat_npy.shape: {concat_npy.shape}")
-            # print(f"==>> concat_npy: {concat_npy}")
-            if self.modality == "RGB":
-                return rgb_npy
-            elif self.modality == "FLOW":
-                return flow_npy
-            else:
-                return concat_npy
-        else:
-            name, frames, gts = (
-                self.data_list[idx].split("|")[0],
-                int(self.data_list[idx].split("|")[1]),
-                self.data_list[idx].split("|")[2][1:-2].split(","),
-            )
-            print(f"==>> name: {name}")
-            print(f"==>> frames: {frames}")
-            print(f"==>> gts: {gts}")
+        file_name = self.data_list[idx]
 
-            # Assault/Assault010_x264.mp4|16177|[11330, 11680, 12260, 12930]\n
-            # name = Assault/Assault010_x264.mp4
-            # frames = 16177
-            # gts = ["11330", "11680", "12260", "12930"]
+        feature_npy = np.load(self.path + file_name)
+        # feature_npy.shape: (12, 710)
 
-            gts = [int(i) for i in gts]
-            print(f"==>> gts: {gts}")
-            rgb_npy = np.load(os.path.join(self.path + "all_rgbs", name + ".npy"))
-            print(f"==>> rgb_npy.shape: {rgb_npy.shape}")
-            flow_npy = np.load(os.path.join(self.path + "all_flows", name + ".npy"))
-            print(f"==>> flow_npy.shape: {flow_npy.shape}")
-            concat_npy = np.concatenate([rgb_npy, flow_npy], axis=1)
-            print(f"==>> concat_npy.shape: {concat_npy.shape}")
-            # print(f"==>> concat_npy: {concat_npy}")
-            if self.modality == "RGB":
-                return rgb_npy, gts, frames
-            elif self.modality == "FLOW":
-                return flow_npy, gts, frames
-            else:
-                return concat_npy, gts, frames
+        file_name = file_name.split("/")[-1].split(".")[0]
+
+        frame_label = self.label_list[file_name]
+
+        gts = np.zeros(192)
+        # 이상행동 영상 180 프레임 => 12 * 16 = 192 가 되도록 길이 연장
+
+        for key, (start, end) in frame_label.items():
+            gts[start - 1 : end] = 1
+
+        for i in range(12):
+            gts[180 + i] = gts[179]
+            # @@ feature extraction할때 마지막 조각에서 frame 개수가 16개가 안되면 마지막 frame을 복사해서 추가함
+
+        gts = gts.reshape(12, 16)
+        # (192) => (12, 16)로 변경
+        gts = np.mean(gts, axis=1)
+        # 평균 내서 (12)로 변경
+
+        return torch.from_numpy(feature_npy).float(), torch.from_numpy(gts).float()

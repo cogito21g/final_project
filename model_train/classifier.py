@@ -43,3 +43,31 @@ class LSTMAutoencoder(nn.Module):
             return x[:, -1, :].unsqueeze(dim=1)
         else:
             return x[:, -(self.prediction_time) :, :]
+
+
+class ClassifierVMAE(nn.Module):
+    def __init__(self, input_dim=710, drop_p=0.0):
+        super().__init__()
+        self.classifier = nn.Sequential(
+            nn.Linear(input_dim, 512),
+            nn.ReLU(),
+            nn.Dropout(drop_p),
+            nn.Linear(512, 32),
+            nn.ReLU(),
+            nn.Dropout(drop_p),
+            nn.Linear(32, 1),
+            nn.Sigmoid(),
+        )
+
+        self.drop_p = drop_p
+        self.weight_init()
+
+    def weight_init(self):
+        for layer in self.classifier:
+            if type(layer) == nn.Linear:
+                nn.init.xavier_normal_(layer.weight)
+
+    def forward(self, x):
+        x = self.classifier(x)
+
+        return x
