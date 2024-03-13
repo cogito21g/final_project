@@ -6,11 +6,7 @@ import uvicorn
 
 from datetime import timedelta, datetime
 
-from api import user_router
-from api import upload_router
-from api import video_router
-from api import real_time_router
-from api import album_router
+from api import user_router, upload_router, video_router, real_time_router, album_router
 
 from database.database import get_db, db_engine
 from database import models

@@ -13,7 +13,7 @@ from utils.config import get_settings
 from database.database import get_db, db_engine
 from database import crud
 from database.crud import pwd_context
-from schemas import schemas
+from database import schemas
 
 from api.user_router import get_current_user
 import boto3

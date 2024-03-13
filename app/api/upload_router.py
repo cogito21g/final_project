@@ -17,7 +17,7 @@ from database import models
 from models.anomaly_detector import AnomalyDetector
 from database import crud
 from database.crud import pwd_context
-from schemas import schemas
+from database import schemas
 
 from api.user_router import get_current_user
 import boto3
@@ -61,14 +61,18 @@ async def upload_post(request: Request,
 
     # email 을 통해 user 객체 획득(id, email 포함)
     user = crud.get_user_by_email(db=db, email=email)
-    
+    video_ext = os.path.splitext(upload_file.filename)[-1]
+    if video_ext != ".mp4":
+        return templates.TemplateResponse("upload.html", {'request': request, 'token': video_ext})
     # Form 과 user_id 를 이용하여 upload row insert
     _upload_create = schemas.UploadCreate(name=name, date=datetime, user_id=user.user_id)
     crud.create_upload(db=db, upload=_upload_create)
     
     # 지금 업로드된 id 획득, 클라이언트로부터 업로드된 비디오 정보(이름, 확장자) 획득
     uploaded = crud.get_upload_id(db=db, user_id=user.user_id, name=name, date=datetime)[-1]
-    video_ext = os.path.splitext(upload_file.filename)[-1]
+    # video_ext = os.path.splitext(upload_file.filename)[-1]
+    # if video_ext != ".mp4":
+    #     return templates.TemplateResponse("upload.html", {'request': request, 'token': video_ext})
     # s3 의 경우 비디오 이름이 같으면 중복 업로드가 되지 않으므로 uuid 활용
     video_name = uuid.uuid1()
     

@@ -49,7 +49,6 @@
                 <thead>
                   <tr>
                     <th scope="col">#</th>
-
                     <th scope="col">이름</th>
                     <th scope="col">날짜&시간</th>
                     <th scope="col">이상탐지</th>
@@ -61,6 +60,7 @@
                     <tr>
                         <th scope="row">{{ loop.index }}</th>
                         <td>
+                            <!-- 클릭 이벤트에 redirectToDetails 함수를 호출하도록 함 -->
                             <a href="#" onclick="redirectToDetails('{{ upload.user_id }}', '{{ upload.upload_id }}')">
                                 {{ upload.name }}
                             </a>
@@ -76,8 +76,10 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button id="{{upload.upload_id}}" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modifyModal">수정</button>
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">삭제</button>
+                            <button class="btn btn-primary btn-sm edit-btn" data-bs-toggle="modal" data-bs-target="#modifyModal" 
+                                    data-uploadid="{{upload.upload_id}}" data-name="{{upload.name}}">수정</button>
+                            <button class="btn btn-primary btn-sm delete-btn" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                    data-uploadid="{{upload.upload_id}}" data-is-real-time="{{upload.is_realtime}}">삭제</button>
                         </td>
                     </tr>
                 {% endfor %}
@@ -86,58 +88,89 @@
         </div>
       </div>
 
-<!-- 
-      <div class="modal fade" id="modifyModal" tabindex="-1" aria-labelledby="modifyModalLabel" aria-hidden="true">
+    <div class="modal fade" id="modifyModal" tabindex="-1" aria-labelledby="modifyModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-            <h1 class="modal-title fs-5" id="exampleModalLabel">Modify</h1>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                변경할 파일 이름을 입력해주세요.
-                <div class="col--3">
-                    <label for="fileName" class="form-label">파일 이름</label>
-                    <input type="text" class="form-control" id="fileName" placeholder="변경할 파일명">
-                  </div>
-                  <div class="modal-footer">
-                      <button type="button" class="btn btn-primary" >변경</button>
-                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="modifyModalLabel">Modify</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    변경할 파일 이름을 입력해주세요.
+                    <form id="editForm" action="/album" method="post">
+                        <input type="hidden" id="modifyCheckCode" name="check_code" value="edit">
+                        <input type="hidden" id="modifyUploadID" name="upload_id">
+                        <input type="hidden" id="originName" name="origin_name">
+                        <div class="col--3">
+                            <label for="newFileName" class="form-label">파일 이름</label>
+                            <input type="text" class="form-control" id="newFileName" name="new_name" placeholder="변경할 파일명">
+                        </div>
+                        <div class="modal-footer"></div>
+                        <button type="submit" class="btn btn-primary" >변경</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    </form>
                 </div>
             </div>
         </div>
-        </div>
-      </div>
+    </div>
 
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-            <h1 class="modal-title fs-5" id="exampleModalLabel">Delete</h1>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-            삭제된 파일은 복구되지 않습니다. 정말 삭제하시겠습니까?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" >삭제</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="deleteModalLabel">Delete</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    삭제된 파일은 복구되지 않습니다. 정말 삭제하시겠습니까?
+                    <form id="deleteForm" action="/album" method="post">
+                        <input type="hidden" id="deleteCheckCode" name="check_code" value="delete">
+                        <input type="hidden" id="deleteUploadID" name="upload_id">
+                        <input type="hidden" id="isRealTime" name="is_real_time">
+                        <div class="modal-footer"></div>
+                        <button type="submit" class="btn btn-primary" >삭제</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    </form>
+                </div>
             </div>
         </div>
-        </div>
-    </div> -->
+    </div>
 
     </body>
     <script>
         function redirectToDetails(user_id, upload_id) {
+            // URL 생성
             var url = `/album/details?user_id=${user_id}&upload_id=${upload_id}`;
+    
             // 페이지 리디렉션
             window.location.href = url;
         }
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var editButtons = document.querySelectorAll('.edit-btn');
+            var deleteButtons = document.querySelectorAll('.delete-btn');
 
-        // const modal = document.querySelector("#10");
-        // function event_modal() {
-        //     modal.innerHTML =
-        // }
+            editButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var uploadId = this.getAttribute('data-uploadid');
+                    var origin_name = this.getAttribute('data-name');
+
+                    document.getElementById('modifyUploadID').value = uploadId;
+                    document.getElementById('originName').value = origin_name;
+                });
+            });
+
+
+            deleteButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var uploadId = this.getAttribute('data-uploadid');
+                    var isRealTime = this.getAttribute('data-is-real-time');
+
+                    document.getElementById('deleteUploadID').value = uploadId;
+                    document.getElementById('isRealTime').value = isRealTime;
+                });
+            });
+        });
     </script>
 </html>

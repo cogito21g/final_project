@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func
 from passlib.context import CryptContext
 from database import models
-from schemas.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
+from database.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
 
 from utils.security import get_password_hash, verify_password
 from database.models import User

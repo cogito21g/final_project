@@ -1,4 +1,5 @@
 from datetime import timedelta, datetime, date
+from typing import Optional
 
 from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query, Depends
 from fastapi.responses import RedirectResponse
@@ -13,7 +14,7 @@ from starlette import status
 from utils.config import get_settings
 from database.database import get_db, db_engine
 
-from database import crud
+from database import crud, models
 from database.crud import pwd_context
 
 from api.user_router import get_current_user
@@ -25,10 +26,10 @@ import json
 settings = get_settings()
 
 templates = Jinja2Templates(directory="templates")
+
 router = APIRouter(
     prefix="/album",
 )
-templates = Jinja2Templates(directory='templates')
 
 boto_config = Config(
     signature_version = 'v4',
@@ -41,8 +42,7 @@ s3 = boto3.client("s3",
 
 
 @router.get("")
-async def upload_get(request: Request,
-                     db: Session = Depends(get_db)):
+async def upload_get(request: Request, db: Session = Depends(get_db)):
     email = get_current_user(request)
     if not email:
         return RedirectResponse(url='/user/login')
@@ -51,6 +51,42 @@ async def upload_get(request: Request,
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
     
     return templates.TemplateResponse("album.html", {'request': request, 'token': email, 'album_list':album_list})
+
+
+@router.post("")
+async def modify_name(request: Request,
+                      check_code: str = Form(...),
+                      upload_id: Optional[int] = Form(...),
+                      origin_name: Optional[str] =  Form(None),
+                      new_name: Optional[str] = Form(None),
+                      is_real_time: Optional[bool] = Form(None),
+                      db: Session = Depends(get_db)):
+    email = get_current_user(request)
+
+    if check_code == "edit":
+        upload_info = db.query(models.Upload).filter((models.Upload.name == origin_name) & 
+                                    (models.Upload.upload_id == upload_id)).first()
+        upload_info.name = new_name
+
+        db.add(upload_info)
+        db.commit()
+        db.refresh(upload_info)
+    elif check_code == "delete":
+        # upload 테이블에서만 지우면 SQLAlchemy relationship cascade 설정에 의해
+        # 자식 테이블의 관련된 데이터도 삭제가 된다.
+        upload_info = crud.get_upload(db, upload_id)
+        if upload_info:
+            db.delete(upload_info)
+
+        db.commit()
+     
+
+    # album_list를 만들고 끝.
+    user = crud.get_user_by_email(db=db, email=email)
+    album_list = crud.get_uploads(db=db, user_id=user.user_id)
+
+    return templates.TemplateResponse("album.html", {'request': request, 'token': email, 'album_list': album_list})
+
 
 
 
