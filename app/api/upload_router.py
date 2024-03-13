@@ -42,7 +42,7 @@ s3 = boto3.client("s3",
 @router.get("")
 async def upload_get(request: Request):
     user = get_current_user(request)
-    err_msg = None
+    err_msg = {"file_ext": None}
     if not user:
         return RedirectResponse(url='/user/login')
 
@@ -57,33 +57,30 @@ async def upload_post(request: Request,
                     thr: float = Form(...),
                     db: Session = Depends(get_db)):
     
-    # token 정보 가져오기 -> email 을 통해 user_id 획득
+
     user = get_current_user(request)
-    err_msg = {"file_ext": "파일 형식이 다릅니다."}
-    # email 을 통해 user 객체 획득(id, email 포함)
-    video_ext = os.path.splitext(upload_file.filename)[-1]
-    if video_ext != ".mp4":
+    err_msg = {"file_ext": None}
+    if not user:
+        return RedirectResponse(url='/user/login')
+
+    file_ext = os.path.splitext(upload_file.filename)[-1]
+    if file_ext != ".mp4":
+        err_msg["file_ext"] = "파일 형식이 다릅니다.(mp4만 지원 가능)"
         return templates.TemplateResponse("upload.html", {'request': request, 'token': user.email, "err": err_msg})
-    # Form 과 user_id 를 이용하여 upload row insert
+    
     _upload_create = schemas.UploadCreate(name=name, date=datetime, is_realtime=False, thr=thr, user_id=user.user_id)
     crud.create_upload(db=db, upload=_upload_create)
     
-    # 지금 업로드된 id 획득, 클라이언트로부터 업로드된 비디오 정보(이름, 확장자) 획득
     uploaded = crud.get_upload_id(db=db, user_id=user.user_id, name=name, date=datetime)[-1]
-    # video_ext = os.path.splitext(upload_file.filename)[-1]
-    # if video_ext != ".mp4":
-    #     return templates.TemplateResponse("upload.html", {'request': request, 'token': video_ext})
-    # s3 의 경우 비디오 이름이 같으면 중복 업로드가 되지 않으므로 uuid 활용
+
     video_name = uuid.uuid1()
     
-    # model inference 에서 s3 에 올릴 주소 그대로 db 에 insert
-    video_url = f"video/{user.user_id}/{uploaded.upload_id}/{video_name}{video_ext}"
+    video_url = f"video/{user.user_id}/{uploaded.upload_id}/{video_name}{file_ext}"
     _video_create = schemas.VideoCreate(video_url=video_url, upload_id=uploaded.upload_id)
     crud.create_video(db=db, video=_video_create)
     _complete_create = schemas.Complete(completed=False, upload_id=uploaded.upload_id)
     crud.create_complete(db=db, complete=_complete_create)
     
-    # model inference 에서 사용할 정보
     info = {
         "user_id": user.user_id,
         "email": user.email,
@@ -93,11 +90,10 @@ async def upload_post(request: Request,
         "threshold": uploaded.thr,
         "video_name": upload_file.filename,
         "video_uuid_name": video_name,
-        "video_ext": video_ext,
+        "video_ext": file_ext,
         "video_id": crud.get_video(db=db, upload_id=uploaded.upload_id).video_id
     }
-    #print(info)
-    
+
     background_tasks.add_task(run_model,
                               video_url, upload_file, info, s3, settings, db)  
     

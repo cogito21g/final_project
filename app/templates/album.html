@@ -33,7 +33,7 @@
                     
                     <ul class="navbar-nav me-auto me-2 me-lg-0">
                         <li class="nav-item">
-                            <a class="nav-link" aria-current="page" href="#">{{ token.email }}</a>
+                            <a class="nav-link" aria-current="page" href="#">{{ token }}</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" aria-current="page" href="/user/logout">Logout</a>
@@ -52,6 +52,7 @@
                     <th scope="col">이름</th>
                     <th scope="col">날짜&시간</th>
                     <th scope="col">이상탐지</th>
+                    <th scope="col">분석 여부</th>
                     <th scope="col">Button</th>
                   </tr>
                 </thead>
@@ -73,6 +74,16 @@
                                 실시간
                             {% else %}
                                 녹화 영상
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if upload.complete %}
+                                <div style="color: green;">분석 완료</div>
+                            {% else %}
+                                <div style="color: red;">분석중</div>
+                                <!-- <div class="spinner-border text-success" role="status">
+                                    <span class="sr-only"></span>
+                                </div> -->
                             {% endif %}
                         </td>
                         <td>

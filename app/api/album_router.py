@@ -1,14 +1,10 @@
-from datetime import timedelta, datetime, date
 from typing import Optional
 
 from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from jose import jwt, JWTError
 from sqlalchemy.orm import Session
-from starlette import status
 
 
 from utils.config import get_settings
@@ -20,7 +16,7 @@ from database.crud import pwd_context
 from api.user_router import get_current_user
 import boto3
 from botocore.config import Config
-import json
+
 
 
 settings = get_settings()
@@ -42,7 +38,8 @@ s3 = boto3.client("s3",
 
 
 @router.get("")
-async def upload_get(request: Request, db: Session = Depends(get_db)):
+async def upload_get(request: Request,
+                     db: Session = Depends(get_db)):
     user = get_current_user(request)
     if not user:
         return RedirectResponse(url='/user/login')
@@ -71,18 +68,14 @@ async def modify_name(request: Request,
         db.commit()
         db.refresh(upload_info)
     elif check_code == "delete":
-        # upload 테이블에서만 지우면 SQLAlchemy relationship cascade 설정에 의해
-        # 자식 테이블의 관련된 데이터도 삭제가 된다.
         upload_info = crud.get_upload(db, upload_id)
         if upload_info:
             db.delete(upload_info)
 
         db.commit()
-    # album_list를 만들고 끝.
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
 
     return templates.TemplateResponse("album.html", {'request': request, 'token': user.email, 'album_list': album_list})
-
 
 
 @router.get("/details")
@@ -92,13 +85,30 @@ async def upload_get_one(request: Request,
     db: Session = Depends(get_db)
     ):
 
+
     user = get_current_user(request)
-        
-    if not crud.get_complete(db=db, upload_id=upload_id).completed:
-        return templates.TemplateResponse("video.html", {'request': request, 'token': user, 'video_info': {}, 'loading': True})
+
+    video_info = {
+        "user_id": user_id,
+        "upload_id":upload_id,
+        "date": None,
+        "upload_name": None,
+        "is_realtime": None,
+        "video_id": None,
+        "video_url": None,
+        "frame_urls": None,
+        "score_url": None,
+        "complete": None  
+    }
+  
         
     video = crud.get_video(db=db, upload_id=upload_id)
+    video_info["video_id"] = video.video_id
     uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
+    video_info["upload_name"] = uploaded.name
+    video_info["is_realtime"] = uploaded.is_realtime
+    video_info["date"] = uploaded.date.strftime('%Y-%m-%d %H:%M:%S')
+    
     #frames = crud.get_frames(db=db, video_id=video.video_id)
     frames = crud.get_frames_with_highest_score(db=db, video_id=video.video_id)
     frame_ids = [frame.frame_id for frame in frames]
@@ -111,6 +121,12 @@ async def upload_get_one(request: Request,
                                             'Key': video.video_url},
                                     ExpiresIn=3600)
     
+    
+    video_info["video_url"] = video_obj
+    video_info["complete"] = crud.get_complete(db=db, upload_id=upload_id).completed
+    if not video_info["complete"]:
+        return templates.TemplateResponse("video.html", {'request': request, 'token': user.email, 'video_info': video_info, 'loading': True})
+ 
     if frame_ids != []:
         for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
             frame_obj = s3.generate_presigned_url('get_object',
@@ -120,32 +136,16 @@ async def upload_get_one(request: Request,
             frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
         
         score_graph_url = '/'.join(frame_urls[0].split('/')[:-1]) + '/score_graph.png'
-        #print(f'score_graph_url >>> {score_graph_url}')
         score_obj = s3.generate_presigned_url('get_object',
                                         Params={'Bucket': settings.BUCKET,
                                                 'Key': score_graph_url},
                                         ExpiresIn=3600)
-    else:
-        frame_objs = "Nothing"
-        score_obj = "Nothing"
-        
-    video_info = {
-        "user_id": user_id,
-        "upload_id": upload_id,
-        "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
-        "upload_name": uploaded.name,
-        "is_realtime": uploaded.is_realtime,
-        "video_id": video.video_id,
-        "video_url": video_obj,
-        "frame_urls": frame_objs,
-        "score_url": score_obj
-    }
+
+        video_info["frame_urls"] = frame_objs
+        video_info["score_url"] = score_obj
+
     
-    #video_info = json.dumps(video_info)
-    #print(video_info.video_url)
-    #print(frame_objs[0])
-    
-    return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': video_info, 'loading': False})
+    return templates.TemplateResponse("video.html", {'request': request, 'token': user.email, 'video_info': video_info, 'loading': False})
 
 
 @router.get("/details/images")
@@ -168,5 +168,5 @@ async def image_get(request: Request,
         'frame_json': frame.box_kp_json
     }
     
-    return templates.TemplateResponse("frame.html", {'request': request, 'token': user, 'frame_info': frame_info})
+    return templates.TemplateResponse("frame.html", {'request': request, 'token': user.email, 'frame_info': frame_info})
     
