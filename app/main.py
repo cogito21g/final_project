@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import ast
 
@@ -12,7 +13,6 @@ from starlette import status
 
 from api import user_router
 from api import upload_router
-from api import video_router
 from api import real_time_router
 from api import album_router
 
@@ -26,6 +26,14 @@ templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://10.28.224.136:30011"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 settings = get_settings()
 
@@ -69,7 +77,6 @@ async def main_post(request: Request):
 app.include_router(user_router.router)
 app.include_router(upload_router.router)
 app.include_router(album_router.router)
-app.include_router(video_router.router)
 app.include_router(real_time_router.router)
 
 if __name__ == '__main__':

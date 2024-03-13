@@ -91,11 +91,15 @@
         <div class="container-lg text-center py-5">
             <div class="row justify-content-center">
                 <h3 class="text-start">Video</h3>
+                {% if video_info.is_realtime %}
+                <h6 class="text-start pt-2">실시간 서비스는 스크린샷만 제공됩니다.</h6>
+                {% else %}
                 <video id="vid" class="py-3" width="800" height="600" autoplay controls>
                     <source src={{video_info.video_url}} type="video/mp4"/>
                 </video>
+                {% endif %}
             </div>
-            <div class="row justify-content-center">
+            <div class="row justify-content-center pt-3">
                 <div class="accordion" id="accordionExample">
                     <div class="accordion-item">
                         <h2 class="accordion-header">
@@ -112,9 +116,18 @@
                             <p class="text-start">업로드 ID: {{ video_info.upload_id }}</p>
                             <p class="text-start">업로드 이름: {{ video_info.upload_name }}</p>
                             <p class="text-start">날짜: {{ video_info.date }}</p>
+                            {% if video_info.is_realtime %}
+                            <p class="text-start">종류: 실시간 <br>실시간 서비스는 영상을 녹화하지 않습니다. 따라서 앨범에서 전체 영상은 보이지 않습니다.</p>
+                            {% else %}
+                            <p class="text-start">종류: 녹화 영상</p>
+                            {% endif %}
                             </div>
                             <div class="col">
-                            <img src={{video_info.score_url}} type="image/png" alt="..." style="width: 100%; height: 300px;" />
+                                {% if video_info.score_url == "Nothing"%}
+                                <p class="text-center">이상행동이 탐지되지 않았습니다.</p>
+                                {% else %}
+                                <img src={{video_info.score_url}} type="image/png" alt="..." style="width: 100%; height: 300px;" />
+                                {% endif %}
                             </div>
                             </div>
                             </div>
@@ -123,8 +136,8 @@
                     </div>
                 </div>
             </div>
-        <hr class "my-4">
-        <div class="container-xl text-center mt-2 py-4">
+        <hr class="my-4">
+        <div class="container-xl text-center mt-2 py-3">
             <h3 class="text-start">Screenshot</h3>
             <div class="row row-cols-2 row-cols-lg-5 g-2 g-lg-3 mt-2" id="screenshotContainer">
                 <!-- 이미지 및 타임스탬프를 동적으로 추가할 자리 -->
@@ -135,30 +148,40 @@
             const videoInfo = JSON.parse('{{ video_info | tojson | safe }}');
 
             const screenshotContainer = document.getElementById('screenshotContainer');
-        
-            videoInfo.frame_urls.forEach(frameInfo => {
-                const col = document.createElement('div');
-                col.classList.add('col');
-        
-                const image = document.createElement('img');
-                image.classList.add('img-thumbnail');
-                image.src = frameInfo[1];
-        
-                const timestampLink = document.createElement('a');
-                timestampLink.classList.add('link-underline-light', 'text-reset');
-                timestampLink.href = '#';
-                timestampLink.innerText = frameInfo[2];
-        
-                col.appendChild(image);
-                col.appendChild(timestampLink);
-                screenshotContainer.appendChild(col);
-        
-                // 이미지를 누르면 확대된 이미지와 버튼이 있는 팝업창을 띄우기
-                image.onclick = () => showPopup(frameInfo[0]);
-        
-                // 타임스탬프를 누르면 비디오가 해당 타임스탬프로 이동
-                timestampLink.onclick = () => seekVideo(frameInfo[2]);
-            });
+            
+            if (videoInfo.frame_urls === "Nothing") {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('container-xl', 'text-center', 'mt-2', 'py-4');
+                const messageHeader = document.createElement('h4');
+                messageHeader.classList.add('text-start');
+                messageHeader.innerText = '아무런 이상행동이 탐지되지 않았습니다.';
+                messageDiv.appendChild(messageHeader);
+                screenshotContainer.parentNode.insertBefore(messageDiv, screenshotContainer.nextSibling);
+            } else {
+                videoInfo.frame_urls.forEach(frameInfo => {
+                    const col = document.createElement('div');
+                    col.classList.add('col');
+            
+                    const image = document.createElement('img');
+                    image.classList.add('img-thumbnail');
+                    image.src = frameInfo[1];
+            
+                    const timestampLink = document.createElement('a');
+                    timestampLink.classList.add('link-underline-light', 'text-reset');
+                    timestampLink.href = '#';
+                    timestampLink.innerText = frameInfo[2];
+            
+                    col.appendChild(image);
+                    col.appendChild(timestampLink);
+                    screenshotContainer.appendChild(col);
+            
+                    // 이미지를 누르면 확대된 이미지와 버튼이 있는 팝업창을 띄우기
+                    image.onclick = () => showPopup(frameInfo[0]);
+            
+                    // 타임스탬프를 누르면 비디오가 해당 타임스탬프로 이동
+                    timestampLink.onclick = () => seekVideo(frameInfo[2]);
+                });
+            }
         
             function showPopup(imageUrl) {
                 // 팝업창 가운데 정렬을 위한 스크린 가로, 세로 크기 계산

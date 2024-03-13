@@ -115,33 +115,35 @@ async def upload_get_one(request: Request,
     frame_timestamps = [frame.time_stamp for frame in frames]
     frame_objs = []
     
-    #obj = f"https://{settings.BUCKET}.s3.ap-northeast-2.amazonaws.com/{video_url}"
     video_obj = s3.generate_presigned_url('get_object',
                                     Params={'Bucket': settings.BUCKET,
                                             'Key': video.video_url},
                                     ExpiresIn=3600)
     
-    for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
-        frame_obj = s3.generate_presigned_url('get_object',
-                                    Params={'Bucket': settings.BUCKET,
-                                            'Key': frame_url},
-                                    ExpiresIn=3600)
-        frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
-    
-    score_graph_url = '/'.join(frame_urls[0].split('/')[:-1]) + '/score_graph.png'
-    #print(f'score_graph_url >>> {score_graph_url}')
-    score_obj = s3.generate_presigned_url('get_object',
-                                    Params={'Bucket': settings.BUCKET,
-                                            'Key': score_graph_url},
-                                    ExpiresIn=3600)
-    
-    #print(obj)
-    
+    if frame_ids != []:
+        for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
+            frame_obj = s3.generate_presigned_url('get_object',
+                                        Params={'Bucket': settings.BUCKET,
+                                                'Key': frame_url},
+                                        ExpiresIn=3600)
+            frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
+        
+        score_graph_url = '/'.join(frame_urls[0].split('/')[:-1]) + '/score_graph.png'
+        #print(f'score_graph_url >>> {score_graph_url}')
+        score_obj = s3.generate_presigned_url('get_object',
+                                        Params={'Bucket': settings.BUCKET,
+                                                'Key': score_graph_url},
+                                        ExpiresIn=3600)
+    else:
+        frame_objs = "Nothing"
+        score_obj = "Nothing"
+        
     video_info = {
         "user_id": user_id,
         "upload_id": upload_id,
         "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
         "upload_name": uploaded.name,
+        "is_realtime": uploaded.is_realtime,
         "video_id": video.video_id,
         "video_url": video_obj,
         "frame_urls": frame_objs,

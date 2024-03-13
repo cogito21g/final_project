@@ -276,11 +276,8 @@ class AnomalyDetector:
                             x, y, w, h = box
                             keypoints = results[0].keypoints.xyn[i].cpu().numpy().flatten().tolist()
                             
-                            # Create a dictionary with named columns for keypoints
-                            keypoints_dict = {f'Keypoint_{j}': float(val) for j, val in enumerate(keypoints, 0)}
-                            
                             # Append the keypoints to the corresponding ID's buffer
-                            # bbox(4), keypoints per id(17)
+                            # bbox(4), keypoints per id(34)
                             id_buffers[track_ids[i]].append([float(x),float(y),float(w),float(h)]+keypoints)
                             
                             # If the buffer size reaches the threshold (e.g., 20 data points), perform anomaly detection
