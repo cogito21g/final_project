@@ -292,6 +292,7 @@ class RT_AnomalyDetector:
                     await self.upload_frame_db(self.db, temp_for_db, frame_url)
                     
                     await self.websocket.send_text(f'{timestamp}: {anomaly_text}')
+
                 
             else:
                 anomaly_text = ""

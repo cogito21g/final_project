@@ -107,7 +107,6 @@ async def realtime_post(request: Request,
 
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
-# websocket 으로 모델 처리 frame 을 계속 클라이언트에게 보냄.
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     await websocket.accept()
@@ -125,16 +124,45 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             timestamp = datetime.now(pytz.timezone('Asia/Seoul'))
             # Receive bytes from the websocket
             bytes = await websocket.receive_bytes()
-            
             await detector.run(bytes, timestamp)
             
     except WebSocketDisconnect:
         await websocket.close()
     
     finally:
-        detector.upload_score_graph_s3()
+        try:
+            detector.upload_score_graph_s3()
+        except:
+            pass
         detector = None
+
+# db 에서 실시간에서 저장되는 frame url 불러오는 코드    
+def fetch_data(db, upload_id):
     
+    video = crud.get_video(db=db, upload_id=upload_id)
+    frames = crud.get_frames_with_highest_score(db=db, video_id=video.video_id)
+    frame_ids = [frame.frame_id for frame in frames]
+    frame_urls = [frame.frame_url for frame in frames]
+    frame_timestamps = [frame.time_stamp for frame in frames]
+    frame_objs = []
+    
+    for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
+        frame_obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': frame_url},
+                                    ExpiresIn=3600)
+        frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
+
+    return {"frame_urls": frame_objs}
+
+@router.get("/fetch_data")
+async def fetch_frame_data(upload_id: int = Query(...),
+                           db: Session = Depends(get_db)):
+    
+    frame_data = fetch_data(db, upload_id)
+    return frame_data
+
+
 @router.get("/stream")
 async def get_stream(request: Request,
     user_id: int = Query(...),
