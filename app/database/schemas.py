@@ -38,22 +38,9 @@ class UploadCreate(BaseModel):
     name: str
     date: datetime
     is_realtime: Optional[bool] = None
+    thr:  float
     user_id: int
 
-# prediction post 스키마
-class RTPredictionRequest(BaseModel):
-    video_id: int
-    is_realtime: Optional[bool] = None
-    user_id: int
-    
-class PredictionRequest(BaseModel):
-    video_id: int
-    video_url : str
-    user_id: int
-    
-class PredictionResponse(BaseModel):
-    video_id: int
-    frame_id: Optional[list] = []
 
 # Video post 스키마
 class VideoCreate(BaseModel):

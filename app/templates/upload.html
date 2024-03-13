@@ -46,7 +46,7 @@
         <h2>이상행동을 탐지할 동영상을 업로드 해주세요.</h2>
         <form id="myForm" action="/upload" method="post" enctype="multipart/form-data">
             <div class="mb-3">
-                <label for="videoName" class="form-label">가게 이름</label>
+                <label for="storeName" class="form-label">가게 이름</label>
                 <input type="text" class="form-control" id="storeName" name="name" placeholder="가게 이름을 입력하세요." required>
             </div>
             <div class="mb-3">
@@ -59,10 +59,23 @@
             </div>
             <div class="mb-3">
                 <label for="file" class="form-label">파일 선택</label>
-                <input type="file" class="form-control" id="file" name="upload_file">
+                <input multiple="multiple" type="file" class="form-control" id="file" name="upload_file">
+                <p style="color: red;">{{ err.file_ext }}</p>
             </div>
-            <button type="submit" class="btn btn-primary" >탐지 시작</button>
-            <!-- <button type="button" class="btn btn-primary" onclick="redirectToRealTime()">실시간 탐지</button> -->
+            <button type="submit" class="btn btn-primary" id="liveToastBtn">탐지 시작</button>
+            <div class="position-fixed bottom-0 end-0 p-3">
+                <div id="liveToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+                  <div class="toast-header">
+                    <img src="..." class="rounded me-2" alt="...">
+                    <strong class="me-auto">IVT</strong>
+                    <small>message</small>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                  </div>
+                  <div class="toast-body">
+                    파일이 제출되었습니다. 잠시후 페이지가 이동합니다.
+                  </div>
+                </div>
+              </div>
         </form>
         
         <!-- <script>

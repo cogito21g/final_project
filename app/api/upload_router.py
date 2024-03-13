@@ -42,10 +42,11 @@ s3 = boto3.client("s3",
 @router.get("")
 async def upload_get(request: Request):
     user = get_current_user(request)
+    err_msg = None
     if not user:
         return RedirectResponse(url='/user/login')
 
-    return templates.TemplateResponse("upload.html", {'request': request, 'token': user})
+    return templates.TemplateResponse("upload.html", {'request': request, 'token': user, "err": err_msg})
 
 @router.post("")
 async def upload_post(request: Request,
@@ -57,15 +58,14 @@ async def upload_post(request: Request,
                     db: Session = Depends(get_db)):
     
     # token 정보 가져오기 -> email 을 통해 user_id 획득
-    email = get_current_user(request)
-
+    user = get_current_user(request)
+    err_msg = {"file_ext": "파일 형식이 다릅니다."}
     # email 을 통해 user 객체 획득(id, email 포함)
-    user = crud.get_user_by_email(db=db, email=email)
     video_ext = os.path.splitext(upload_file.filename)[-1]
     if video_ext != ".mp4":
-        return templates.TemplateResponse("upload.html", {'request': request, 'token': video_ext})
+        return templates.TemplateResponse("upload.html", {'request': request, 'token': user.email, "err": err_msg})
     # Form 과 user_id 를 이용하여 upload row insert
-    _upload_create = schemas.UploadCreate(name=name, date=datetime, user_id=user.user_id)
+    _upload_create = schemas.UploadCreate(name=name, date=datetime, is_realtime=False, thr=thr, user_id=user.user_id)
     crud.create_upload(db=db, upload=_upload_create)
     
     # 지금 업로드된 id 획득, 클라이언트로부터 업로드된 비디오 정보(이름, 확장자) 획득
@@ -90,7 +90,7 @@ async def upload_post(request: Request,
         "upload_id": uploaded.upload_id,
         "name": name,
         "date": datetime,
-        "threshold": thr,
+        "threshold": uploaded.thr,
         "video_name": upload_file.filename,
         "video_uuid_name": video_name,
         "video_ext": video_ext,
@@ -129,62 +129,6 @@ def run_model(video_url, upload_file, info, s3, settings, db):
                             settings=settings,
                             db=db)
     model.run()
-    
-    crud.update_complete_status(db=db, upload_id=info['upload_id'])
-    
 
-# @router.post("/video")
-# async def video_get(request: Request,
-#     user_id: int = Query(...),
-#     upload_id: int = Query(...),
-#     name: str = Query(...),
-#     date: str = Query(...),
-#     video_name: str = Query(...),
-#     db: Session = Depends(get_db)
-#     ):
-    
-    # token = get_current_user(request)
-    
-#     video_url = crud.get_video(db=db, upload_id=upload_id).video_url
-#     video_id = crud.get_video(db=db, upload_id=upload_id).video_id
-#     #frames = crud.get_frames(db=db, video_id=video_id)
-#     frames = crud.get_frames_with_highest_score(db=db, video_id=video_id)
-#     frame_urls = [frame.frame_url for frame in frames]
-#     frame_timestamps = [frame.time_stamp for frame in frames]
-#     frame_objs = []
-    
-#     #obj = f"https://{settings.BUCKET}.s3.ap-northeast-2.amazonaws.com/{video_url}"
-#     video_obj = s3.generate_presigned_url('get_object',
-#                                     Params={'Bucket': settings.BUCKET,
-#                                             'Key': video_url},
-#                                     ExpiresIn=3600)
-#     for frame_url, frame_timestamp in zip(frame_urls, frame_timestamps):
-#         frame_obj = s3.generate_presigned_url('get_object',
-#                                     Params={'Bucket': settings.BUCKET,
-#                                             'Key': frame_url},
-#                                     ExpiresIn=3600)
-#         frame_objs.append((frame_obj, frame_timestamp))
-    
-#     score_graph_url = '/'.join(frame_urls[0].split('/')[:-1]) + '/score_graph.png'
-#     #print(f'score_graph_url >>> {score_graph_url}')
-#     score_obj = s3.generate_presigned_url('get_object',
-#                                     Params={'Bucket': settings.BUCKET,
-#                                             'Key': score_graph_url},
-#                                     ExpiresIn=3600)
-        
-#     #print(f'video_obj >>> {video_obj}')
-#     #print(f'frame_objs >>> {frame_objs}')
-    
-#     video_info = {
-#         "user_id": user_id,
-#         "upload_id": upload_id,
-#         "date": date,
-#         "upload_name": name,
-#         "video_name": video_name,
-#         "video_url": video_obj,
-#         "frame_urls": frame_objs,
-#         "score_url": score_obj
-#     }
-#     #print(video_info)
-    
-#     return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': video_info})
+    crud.update_complete_status(db=db, upload_id=info['upload_id'])
+    return 

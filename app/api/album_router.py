@@ -43,14 +43,13 @@ s3 = boto3.client("s3",
 
 @router.get("")
 async def upload_get(request: Request, db: Session = Depends(get_db)):
-    email = get_current_user(request)
-    if not email:
+    user = get_current_user(request)
+    if not user:
         return RedirectResponse(url='/user/login')
         
-    user = crud.get_user_by_email(db=db, email=email)
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
     
-    return templates.TemplateResponse("album.html", {'request': request, 'token': email, 'album_list':album_list})
+    return templates.TemplateResponse("album.html", {'request': request, 'token': user.email, 'album_list':album_list})
 
 
 @router.post("")
@@ -61,7 +60,7 @@ async def modify_name(request: Request,
                       new_name: Optional[str] = Form(None),
                       is_real_time: Optional[bool] = Form(None),
                       db: Session = Depends(get_db)):
-    email = get_current_user(request)
+    user = get_current_user(request)
 
     if check_code == "edit":
         upload_info = db.query(models.Upload).filter((models.Upload.name == origin_name) & 
@@ -79,14 +78,10 @@ async def modify_name(request: Request,
             db.delete(upload_info)
 
         db.commit()
-     
-
     # album_list를 만들고 끝.
-    user = crud.get_user_by_email(db=db, email=email)
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
 
-    return templates.TemplateResponse("album.html", {'request': request, 'token': email, 'album_list': album_list})
-
+    return templates.TemplateResponse("album.html", {'request': request, 'token': user.email, 'album_list': album_list})
 
 
 
@@ -111,33 +106,35 @@ async def upload_get_one(request: Request,
     frame_timestamps = [frame.time_stamp for frame in frames]
     frame_objs = []
     
-    #obj = f"https://{settings.BUCKET}.s3.ap-northeast-2.amazonaws.com/{video_url}"
     video_obj = s3.generate_presigned_url('get_object',
                                     Params={'Bucket': settings.BUCKET,
                                             'Key': video.video_url},
                                     ExpiresIn=3600)
     
-    for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
-        frame_obj = s3.generate_presigned_url('get_object',
-                                    Params={'Bucket': settings.BUCKET,
-                                            'Key': frame_url},
-                                    ExpiresIn=3600)
-        frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
-    
-    score_graph_url = '/'.join(frame_urls[0].split('/')[:-1]) + '/score_graph.png'
-    #print(f'score_graph_url >>> {score_graph_url}')
-    score_obj = s3.generate_presigned_url('get_object',
-                                    Params={'Bucket': settings.BUCKET,
-                                            'Key': score_graph_url},
-                                    ExpiresIn=3600)
-    
-    #print(obj)
-    
+    if frame_ids != []:
+        for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
+            frame_obj = s3.generate_presigned_url('get_object',
+                                        Params={'Bucket': settings.BUCKET,
+                                                'Key': frame_url},
+                                        ExpiresIn=3600)
+            frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
+        
+        score_graph_url = '/'.join(frame_urls[0].split('/')[:-1]) + '/score_graph.png'
+        #print(f'score_graph_url >>> {score_graph_url}')
+        score_obj = s3.generate_presigned_url('get_object',
+                                        Params={'Bucket': settings.BUCKET,
+                                                'Key': score_graph_url},
+                                        ExpiresIn=3600)
+    else:
+        frame_objs = "Nothing"
+        score_obj = "Nothing"
+        
     video_info = {
         "user_id": user_id,
         "upload_id": upload_id,
         "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
         "upload_name": uploaded.name,
+        "is_realtime": uploaded.is_realtime,
         "video_id": video.video_id,
         "video_url": video_obj,
         "frame_urls": frame_objs,

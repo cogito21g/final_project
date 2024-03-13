@@ -20,6 +20,7 @@ class Upload(Base):
     name = Column(String(50), nullable=False)
     date = Column(DateTime, nullable=False)
     is_realtime = Column(Boolean, default=False)
+    thr = Column(Float, nullable=False)
     user_id = Column(Integer, ForeignKey("user.user_id"), nullable=False)
     
     user = relationship("User", back_populates="uploads")
