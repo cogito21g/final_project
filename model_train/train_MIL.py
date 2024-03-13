@@ -352,6 +352,11 @@ def train(
                     # pred는 (val_batch_size * 24, 1)
 
                     val_loss = criterion(pred, gts)
+                    # if val_loss > 2:
+                    #     print(f"==>> pred: {pred}")
+                    #     print(f"==>> gts: {gts}")
+                    #     counter = patience + 1
+
                     # val_MIL_loss = MIL_criterion(pred, val_batch_size)
 
                     pred_correct = pred > thr
