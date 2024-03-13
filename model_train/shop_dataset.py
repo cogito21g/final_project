@@ -362,7 +362,7 @@ class NormalVMAE(Dataset):
         return torch.from_numpy(feature_npy).float(), torch.from_numpy(gts).float()
 
 
-class AnomalyVMAE(Dataset):
+class AbnormalVMAE(Dataset):
     """
     is_train = 1 <- train, 0 <- test
     """
@@ -433,9 +433,11 @@ class AnomalyVMAE(Dataset):
             gts[180 + i] = gts[179]
             # @@ feature extraction할때 마지막 조각에서 frame 개수가 16개가 안되면 마지막 frame을 복사해서 추가함
 
-        gts = gts.reshape(12, 16)
-        # (192) => (12, 16)로 변경
-        gts = np.mean(gts, axis=1)
-        # 평균 내서 (12)로 변경
+        if self.is_train:
+            gts = gts.reshape(12, 16)
+            # (192) => (12, 16)로 변경
+            gts = np.mean(gts, axis=1)
+            # 평균 내서 (12)로 변경
+        # @@ validation일때는 평균내지 않고 (192) 그대로 반환
 
         return torch.from_numpy(feature_npy).float(), torch.from_numpy(gts).float()

@@ -45,7 +45,7 @@ class LSTMAutoencoder(nn.Module):
             return x[:, -(self.prediction_time) :, :]
 
 
-class ClassifierVMAE(nn.Module):
+class MILClassifier(nn.Module):
     def __init__(self, input_dim=710, drop_p=0.0):
         super().__init__()
         self.classifier = nn.Sequential(

@@ -52,7 +52,7 @@ def parse_args():
         "--json_dir",
         type=str,
         default=os.environ.get(
-            "SM_CHANNEL_ABNORMAL_JSON",
+            "SM_CHANNEL_ABNORMAL_VAL_JSON",
             "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal/val",
         ),
     )
