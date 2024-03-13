@@ -321,20 +321,24 @@ class NormalVMAE(Dataset):
 
         self.path = root
 
-        folder_list = os.listdir(root).sort()
+        folder_list = os.listdir(self.path)
+        folder_list.sort()
 
         self.data_list = []
 
         for folder_name in folder_list:
+            print(f"==>> {folder_name} 폴더 데이터 로딩 시작")
             if folder_name.endswith("_base") and model_size == "small":
                 continue
             elif not folder_name.endswith("_base") and model_size != "small":
                 continue
 
             folder_path = folder_name + "/"
-            data_list = os.listdir(self.path + folder_path).sort()
+            data_list = os.listdir(self.path + "/" + folder_path)
+            data_list.sort()
             data_list = [folder_path + name for name in data_list]
             self.data_list.extend(data_list)
+            print(f"==>> {folder_name} 폴더 데이터 로딩 완료")
 
     def __len__(self):
         return len(self.data_list)
@@ -342,17 +346,24 @@ class NormalVMAE(Dataset):
     def __getitem__(self, idx):
         file_name = self.data_list[idx]
 
-        feature_npy = np.zeros(60, 710)
-        # 12로 나눌 수 있도록 (60, 710) 준비
+        feature = np.load(self.path + "/" + file_name)
+        # 정상 영상 feature는 (57,710) 또는 (38,710)
+        if feature.shape[0] % 12 == 0:
+            feature_npy = feature
+        else:
+            count = (feature.shape[0] // 12) + 1
 
-        feature_npy[:57] = np.load(self.path + file_name)
-        # np.load로 불러온 정상영상 feature는 (57, 710)
+            feature_npy = np.zeros((count * 12, 710))
+            # 12로 나눌 수 있도록 (60, 710) or (48, 710) 준비
 
-        feature_npy[57:] = (feature_npy[56], feature_npy[56], feature_npy[56])
-        # 정상영상 feature의 57번째 부분으로 빈 자리 채우기
+            feature_npy[: feature.shape[0]] = feature
+            # np.load로 불러온 정상영상 feature는 (57, 710) 또는 (38,710)
 
-        feature_npy = feature_npy.reshape(12, 5, -1)
-        # (12, 5, 710)
+            feature_npy[feature.shape[0] :] = [feature_npy[-1]] * (count * 12 - feature.shape[0])
+            # 정상영상 feature의 마지막 부분으로 빈 자리 채우기
+
+        feature_npy = feature_npy.reshape(12, -1, 710)
+        # (12, 5, 710) or (12, 4, 710)
         feature_npy = np.mean(feature_npy, axis=1)
         # 이상행동 영상 feature의 (12,710)과 같아지도록 평균으로 조절
 
@@ -384,20 +395,25 @@ class AbnormalVMAE(Dataset):
             self.path = root + "/val/"
             self.label_path = label_root + "/val/"
 
-        # folder_list = os.listdir(root).sort()
-        label_folder_list = os.listdir(self.label_path).sort()
+        label_folder_list = os.listdir(self.label_path)
+        label_folder_list.sort()
 
         self.data_list = []
         self.label_list = dd(lambda: dd(lambda: [-1, -1]))
 
         for folder_name in label_folder_list:
+            print(f"==>> {folder_name} 폴더 데이터 로딩 시작")
             folder_path = (folder_name + "/") if model_size == "small" else (folder_name + "_base/")
             label_folder_path = self.label_path + folder_name + "/"
 
-            label_list = os.listdir(label_folder_path).sort()
+            label_list = os.listdir(label_folder_path)
+            label_list.sort()
             data_list = [folder_path + name[:-4] + "mp4.npy" for name in label_list]
             self.data_list.extend(data_list)
 
+            print(f"==>> {folder_name} 폴더 데이터 JSON 로딩 중")
+            # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+            # TODO: 시간이 엄청 오래걸리는 JSON 로딩부분을 지우고 UCF-CRIME MIL 깃헙처럼 text파일에 미리 frame정보 저장하기
             for js in label_list:
                 with open(label_folder_path + js, "r") as j:
                     json_dict = json.load(j)
@@ -409,6 +425,8 @@ class AbnormalVMAE(Dataset):
                     elif dict["@label"].endswith("_end"):
                         cur_id = dict["@id"]
                         self.label_list[js[:-5]][cur_id][1] = dict["box"][0]["@frame"]
+            # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+            print(f"==>> {folder_name} 폴더 데이터 로딩 완료")
 
     def __len__(self):
         return len(self.data_list)
@@ -427,7 +445,7 @@ class AbnormalVMAE(Dataset):
         # 이상행동 영상 180 프레임 => 12 * 16 = 192 가 되도록 길이 연장
 
         for key, (start, end) in frame_label.items():
-            gts[start - 1 : end] = 1
+            gts[int(start) - 1 : int(end)] = 1
 
         for i in range(12):
             gts[180 + i] = gts[179]
@@ -438,6 +456,7 @@ class AbnormalVMAE(Dataset):
             # (192) => (12, 16)로 변경
             gts = np.mean(gts, axis=1)
             # 평균 내서 (12)로 변경
-        # @@ validation일때는 평균내지 않고 (192) 그대로 반환
+
+        # @@ validation일때는 평균내지 않고 (192) numpy array 그대로 반환
 
         return torch.from_numpy(feature_npy).float(), torch.from_numpy(gts).float()
