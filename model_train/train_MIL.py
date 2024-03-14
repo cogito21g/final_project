@@ -316,13 +316,14 @@ def train(
                 pred_correct = pred_correct == gts_correct
                 corrects = torch.sum(pred_correct).item()
 
-                epoch_n_loss += loss
-                epoch_n_MIL_loss += MIL_loss
+                epoch_n_loss += loss.item()
+                epoch_n_MIL_loss += MIL_loss.item()
 
-                epoch_n_n_corrects += corrects // (abnormal_input.size(1) * 2)
+                epoch_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
 
             except StopIteration:
                 if not use_extra:
+
                     break
                 abnormal_input, abnormal_gt = abnormal_inputs
                 # (batch_size, 12, 710), (batch_size, 12)
@@ -348,12 +349,12 @@ def train(
                 pred_correct = pred_correct == gts_correct
                 corrects = torch.sum(pred_correct).item()
 
-                epoch_loss += loss
-                epoch_n_corrects += corrects // abnormal_input.size(1)
+                epoch_loss += loss.item()
+                epoch_n_corrects += corrects / abnormal_input.size(1)
 
-        epoch_mean_loss = (epoch_loss / (total_batches - len(normal_train_loader))).item()
-        epoch_n_mean_loss = (epoch_n_loss / len(normal_train_loader)).item()
-        epoch_n_mean_MIL_loss = (epoch_n_MIL_loss / len(normal_train_loader)).item()
+        epoch_mean_loss = epoch_loss / (total_batches - len(normal_train_loader))
+        epoch_n_mean_loss = epoch_n_loss / len(normal_train_loader)
+        epoch_n_mean_MIL_loss = epoch_n_MIL_loss / len(normal_train_loader)
         epoch_n_accuracy = epoch_n_n_corrects / (batch_size * (len(normal_train_loader)))
         epoch_accuracy = epoch_n_corrects / (batch_size * (len(abnormal_train_loader)))
 
@@ -458,8 +459,8 @@ def train(
                         try:
                             auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
                             total_n_auc += auc
-                            total_n_n_corrects += corrects // (abnormal_input.size(1) * 2)
-                            total_n_loss += val_loss
+                            total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
+                            total_n_loss += val_loss.item()
                         except ValueError:
                             # print(
                             #     "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case."
@@ -511,9 +512,9 @@ def train(
                         try:
                             auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
                             total_auc += auc
-                            total_n_corrects += corrects // abnormal_input.size(1)
+                            total_n_corrects += corrects / abnormal_input.size(1)
                             # normal + abnormal 24개와 다르게 abnormal 12개만 있음 -> /12 => 2/24
-                            total_loss += val_loss
+                            total_loss += val_loss.item()
                         except ValueError:
                             # print(
                             #     "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case."
@@ -522,12 +523,12 @@ def train(
                             error_count += 1
                             # print("0~180 전부 0인 abnormal 영상 있음")
 
-                val_n_mean_loss = (total_n_loss / (len(normal_valid_loader) - error_n_count)).item()
+                val_n_mean_loss = total_n_loss / (len(normal_valid_loader) - error_n_count)
                 val_n_auc = total_n_auc / (len(normal_valid_loader) - error_n_count)
                 val_n_accuracy = total_n_n_corrects / ((len(normal_valid_loader) - error_n_count))
-                val_mean_loss = (
-                    total_loss / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
-                ).item()
+                val_mean_loss = total_loss / (
+                    len(abnormal_valid_loader) - len(normal_valid_loader) - error_count
+                )
                 val_auc = total_auc / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
                 val_accuracy = total_n_corrects / (
                     (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
