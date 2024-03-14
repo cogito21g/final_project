@@ -303,7 +303,7 @@ def train(
                 # pred는 (batch_size * 24, 1)
 
                 loss = criterion(pred, gts)
-                MIL_loss = MIL_criterion(pred, batch_size)
+                MIL_loss = MIL_criterion(pred, batch_size, abnormal_input.size(1))
                 sum_loss = loss + MIL_loss
                 sum_loss.backward()
 
@@ -319,7 +319,7 @@ def train(
                 epoch_n_loss += loss
                 epoch_n_MIL_loss += MIL_loss
 
-                epoch_n_n_corrects += corrects
+                epoch_n_n_corrects += corrects // (abnormal_input.size(1) * 2)
 
             except StopIteration:
                 if not use_extra:
@@ -349,13 +349,13 @@ def train(
                 corrects = torch.sum(pred_correct).item()
 
                 epoch_loss += loss
-                epoch_n_corrects += corrects * 2
+                epoch_n_corrects += corrects // abnormal_input.size(1)
 
         epoch_mean_loss = (epoch_loss / (total_batches - len(normal_train_loader))).item()
         epoch_n_mean_loss = (epoch_n_loss / len(normal_train_loader)).item()
         epoch_n_mean_MIL_loss = (epoch_n_MIL_loss / len(normal_train_loader)).item()
-        epoch_n_accuracy = epoch_n_n_corrects / (24 * batch_size * (len(normal_train_loader)))
-        epoch_accuracy = epoch_n_corrects / (24 * batch_size * (len(abnormal_train_loader)))
+        epoch_n_accuracy = epoch_n_n_corrects / (batch_size * (len(normal_train_loader)))
+        epoch_accuracy = epoch_n_corrects / (batch_size * (len(abnormal_train_loader)))
 
         train_end = datetime.now()
         train_time = train_end - epoch_start
@@ -410,7 +410,7 @@ def train(
                         normal_input, normal_gt = normal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 12)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, 12, 16), dim=2)[0]
+                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
                         # (val_batch_size, 12)
 
                         inputs = torch.cat((abnormal_input, normal_input), dim=1)
@@ -440,25 +440,25 @@ def train(
                         corrects = torch.sum(pred_correct).item()
 
                         pred = (pred.squeeze()).detach().cpu().numpy()
-                        pred_abnormal_np = np.zeros(180)
-                        pred_normal_np = np.zeros(180)
+                        pred_abnormal_np = np.zeros(abnormal_gt.size(1))
+                        pred_normal_np = np.zeros(abnormal_gt.size(1))
 
-                        step = np.array([i for i in range(13)])
+                        step = np.array([i for i in range(abnormal_input.size(1) + 1)])
 
-                        for j in range(12):
+                        for j in range(abnormal_input.size(1)):
                             pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
-                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[12 + j]
+                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[abnormal_input.size(1) + j]
 
                         pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
 
-                        abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()[:180]
-                        normal_gt = np.zeros(180)
+                        abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
+                        normal_gt = np.zeros_like(abnormal_gt)
                         gt_np = np.concatenate((abnormal_gt, normal_gt), axis=0)
 
                         try:
                             auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
                             total_n_auc += auc
-                            total_n_n_corrects += corrects
+                            total_n_n_corrects += corrects // (abnormal_input.size(1) * 2)
                             total_n_loss += val_loss
                         except ValueError:
                             # print(
@@ -473,7 +473,7 @@ def train(
                         abnormal_input, abnormal_gt = abnormal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 192)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, 12, 16), dim=2)[0]
+                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
                         # (val_batch_size, 12)
 
                         inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
@@ -499,19 +499,19 @@ def train(
                         corrects = torch.sum(pred_correct).item()
 
                         pred = (pred.squeeze()).detach().cpu().numpy()
-                        pred_abnormal_np = np.zeros(180)
+                        pred_abnormal_np = np.zeros(abnormal_gt.size(1))
 
-                        step = np.array([i for i in range(13)])
+                        step = np.array([i for i in range(abnormal_input.size(1) + 1)])
 
-                        for j in range(12):
+                        for j in range(abnormal_input.size(1)):
                             pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
 
-                        abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()[:180]
+                        abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
 
                         try:
                             auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
                             total_auc += auc
-                            total_n_corrects += corrects * 2
+                            total_n_corrects += corrects // abnormal_input.size(1)
                             # normal + abnormal 24개와 다르게 abnormal 12개만 있음 -> /12 => 2/24
                             total_loss += val_loss
                         except ValueError:
@@ -524,13 +524,13 @@ def train(
 
                 val_n_mean_loss = (total_n_loss / (len(normal_valid_loader) - error_n_count)).item()
                 val_n_auc = total_n_auc / (len(normal_valid_loader) - error_n_count)
-                val_n_accuracy = total_n_n_corrects / (24 * (len(normal_valid_loader) - error_n_count))
+                val_n_accuracy = total_n_n_corrects / ((len(normal_valid_loader) - error_n_count))
                 val_mean_loss = (
                     total_loss / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
                 ).item()
                 val_auc = total_auc / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
                 val_accuracy = total_n_corrects / (
-                    24 * (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
+                    (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
                 )
                 # for loop 한번에 abnormal 12, normal 12해서 24개 정답 확인
 

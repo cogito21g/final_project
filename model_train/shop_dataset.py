@@ -367,10 +367,10 @@ class NormalVMAE(Dataset):
         feature_npy = np.mean(feature_npy, axis=1)
         # 이상행동 영상 feature의 (12,710)과 같아지도록 평균으로 조절
 
-        gts = np.zeros(12)
+        gts = np.zeros(11)
         # 정상영상은 전부 정답이 0
 
-        return torch.from_numpy(feature_npy).float(), torch.from_numpy(gts).float()
+        return torch.from_numpy(feature_npy[:-1, :]).float(), torch.from_numpy(gts).float()
 
 
 class AbnormalVMAE(Dataset):
@@ -417,18 +417,18 @@ class AbnormalVMAE(Dataset):
 
         # file_name = file_info["filename"].split("/")[-1].split(".")[0]
 
-        gts = np.zeros(192)
+        gts = np.zeros(176)
         # 이상행동 영상 180 프레임 => 12 * 16 = 192 가 되도록 길이 연장
 
         for start, end in zip(file_info["frames_start"], file_info["frames_end"]):
-            gts[int(start) - 1 : int(end)] = 1
+            gts[int(start) - 1 : min(int(end), 176)] = 1
 
-        for i in range(12):
-            gts[180 + i] = gts[179]
-            # @@ feature extraction할때 마지막 조각에서 frame 개수가 16개가 안되면 마지막 frame을 복사해서 추가함
+        # for i in range(12):
+        #     gts[180 + i] = gts[179]
+        # @@ feature extraction할때 마지막 조각에서 frame 개수가 16개가 안되면 마지막 frame을 복사해서 추가함
 
         if self.is_train:
-            gts = gts.reshape(12, 16)
+            gts = gts.reshape(11, 16)
             # (192) => (12, 16)로 변경
             # gts = np.mean(gts, axis=1)
             # 평균 내서 (12)로 변경
@@ -436,4 +436,4 @@ class AbnormalVMAE(Dataset):
 
         # @@ validation일때는 평균내지 않고 (192) numpy array 그대로 반환
 
-        return torch.from_numpy(feature_npy).float(), torch.from_numpy(gts).float()
+        return torch.from_numpy(feature_npy[:-1, :]).float(), torch.from_numpy(gts).float()
