@@ -74,8 +74,8 @@ async def realtime_post(request: Request,
                     thr: float = Form(...),
                     db: Session = Depends(get_db)):
 
-    email = get_current_user(request)
-    user = crud.get_user_by_email(db=db, email=email)
+    user = get_current_user(request)
+    user = crud.get_user_by_email(db=db, email=user.email)
 
     # Form 과 user_id 를 이용하여 upload row insert
     _upload_create = schemas.UploadCreate(name=name, date=datetime, is_realtime=True, thr=thr, user_id=user.user_id)
@@ -171,7 +171,9 @@ async def get_stream(request: Request,
     ):
     
     user = get_current_user(request)
-
+    if not user:
+        return RedirectResponse(url="/")
+        
     video = crud.get_video(db=db, upload_id=upload_id)
     uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
     
@@ -186,4 +188,5 @@ async def get_stream(request: Request,
     }
     
     # video_info = json.dumps(video_info)
-    return templates.TemplateResponse("video.html", {'request': request, 'token': user, 'video_info': video_info})
+    
+    return templates.TemplateResponse("stream.html", {'request': request, 'token': user, 'video_info': video_info})

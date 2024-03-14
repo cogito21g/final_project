@@ -23,7 +23,7 @@ app.mount("/static", StaticFiles(directory="templates/static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://10.28.224.136:30081"], 
+    allow_origins=["http://10.28.224.98:30081"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,22 +34,23 @@ settings = get_settings()
 
 @app.get("/")
 async def main_get(request:Request):
-
 	user = user_router.get_current_user(request)
-	
-	return templates.TemplateResponse("main.html", {'request': request, 'token': user.email})
+	if user:
+		return templates.TemplateResponse("main.html", {'request': request, 'token': user.email})
+	else:
+		return templates.TemplateResponse("main.html", {'request': request, 'token': None})
 
 @app.post("/")
 async def main_post(request: Request):
 	body = await request.form()
-	user = body["email"]
+	email = body["email"]
 	data = {
-        "sub": user,
+        "sub": email,
         "exp": datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     }
 	token = jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 	
-	template_response = templates.TemplateResponse('main.html', {'request': request, 'token': user.email})
+	template_response = templates.TemplateResponse('main.html', {'request': request, 'token': email})
  
     # 쿠키 저장
 	template_response.set_cookie(key="access_token", value=token, expires=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), httponly=True)

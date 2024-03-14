@@ -46,7 +46,7 @@ async def upload_get(request: Request,
         
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
     
-    return templates.TemplateResponse("album.html", {'request': request, 'token': user.email, 'album_list':album_list})
+    return templates.TemplateResponse("album_list.html", {'request': request, 'token': user.email, 'album_list':album_list})
 
 
 @router.post("")
@@ -75,7 +75,7 @@ async def modify_name(request: Request,
         db.commit()
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
 
-    return templates.TemplateResponse("album.html", {'request': request, 'token': user.email, 'album_list': album_list})
+    return templates.TemplateResponse("album_list.html", {'request': request, 'token': user.email, 'album_list': album_list})
 
 
 @router.get("/details")
@@ -125,7 +125,7 @@ async def upload_get_one(request: Request,
     video_info["video_url"] = video_obj
     video_info["complete"] = crud.get_complete(db=db, upload_id=upload_id).completed
     if not video_info["complete"]:
-        return templates.TemplateResponse("video.html", {'request': request, 'token': user.email, 'video_info': video_info, 'loading': True})
+        return templates.TemplateResponse("album_detail.html", {'request': request, 'token': user.email, 'video_info': video_info, 'loading': True})
  
     if frame_ids != []:
         for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
@@ -145,7 +145,7 @@ async def upload_get_one(request: Request,
         video_info["score_url"] = score_obj
 
     
-    return templates.TemplateResponse("video.html", {'request': request, 'token': user.email, 'video_info': video_info, 'loading': False})
+    return templates.TemplateResponse("album_detail.html", {'request': request, 'token': user.email, 'video_info': video_info, 'loading': False})
 
 
 @router.get("/details/images")
