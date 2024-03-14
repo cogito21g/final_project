@@ -54,7 +54,7 @@ def parse_args():
         type=str,
         default=os.environ.get(
             "SM_CHANNEL_ABNORMAL_JSON",
-            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal/",
+            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal",
         ),
     )
     # abnormal 검증셋 csv, json파일 경로
@@ -79,8 +79,8 @@ def parse_args():
     parser.add_argument("--num_workers", type=int, default=8)
 
     parser.add_argument("--batch_size", type=int, default=30)
-    parser.add_argument("--val_batch_size", type=int, default=1)
-    parser.add_argument("--val_num_workers", type=int, default=0)
+    # parser.add_argument("--val_batch_size", type=int, default=1)
+    # parser.add_argument("--val_num_workers", type=int, default=0)
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--max_epoch", type=int, default=75)
 
@@ -126,8 +126,8 @@ def train(
     device,
     num_workers,
     batch_size,
-    val_num_workers,
-    val_batch_size,
+    # val_num_workers,
+    # val_batch_size,
     learning_rate,
     max_epoch,
     val_interval,
@@ -152,7 +152,9 @@ def train(
         os.makedirs(model_dir)
 
     batch_size = batch_size
-    val_batch_size = val_batch_size
+
+    val_batch_size = 1
+    val_num_workers = 0
 
     # -- early stopping flag
     patience = patience

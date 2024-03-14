@@ -385,66 +385,42 @@ class AbnormalVMAE(Dataset):
         root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/abnormal",
         label_root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal",
     ):
+        print(f"==>> abnormal 데이터 로딩 시작")
         super().__init__()
         self.is_train = is_train
 
         if self.is_train == 1:
             self.path = root + "/train/"
-            self.label_path = label_root + "/train/"
+            if model_size == "small":
+                self.label_path = label_root + "/train/abnormal_train.json"
+            else:
+                self.label_path = label_root + "/train/abnormal_train_base.json"
         else:
             self.path = root + "/val/"
-            self.label_path = label_root + "/val/"
+            if model_size == "small":
+                self.label_path = label_root + "/val/abnormal_val.json"
+            else:
+                self.label_path = label_root + "/val/abnormal_val_base.json"
 
-        label_folder_list = os.listdir(self.label_path)
-        label_folder_list.sort()
-
-        self.data_list = []
-        self.label_list = dd(lambda: dd(lambda: [-1, -1]))
-
-        for folder_name in label_folder_list:
-            print(f"==>> {folder_name} 폴더 데이터 로딩 시작")
-            folder_path = (folder_name + "/") if model_size == "small" else (folder_name + "_base/")
-            label_folder_path = self.label_path + folder_name + "/"
-
-            label_list = os.listdir(label_folder_path)
-            label_list.sort()
-            data_list = [folder_path + name[:-4] + "mp4.npy" for name in label_list]
-            self.data_list.extend(data_list)
-
-            print(f"==>> {folder_name} 폴더 데이터 JSON 로딩 중")
-            # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-            # TODO: 시간이 엄청 오래걸리는 JSON 로딩부분을 지우고 UCF-CRIME MIL 깃헙처럼 text파일에 미리 frame정보 저장하기
-            for js in label_list:
-                with open(label_folder_path + js, "r") as j:
-                    json_dict = json.load(j)
-
-                for dict in json_dict["annotations"]["track"]:
-                    if dict["@label"].endswith("_start"):
-                        cur_id = dict["@id"]
-                        self.label_list[js[:-5]][cur_id][0] = dict["box"][0]["@frame"]
-                    elif dict["@label"].endswith("_end"):
-                        cur_id = dict["@id"]
-                        self.label_list[js[:-5]][cur_id][1] = dict["box"][0]["@frame"]
-            # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-            print(f"==>> {folder_name} 폴더 데이터 로딩 완료")
+        with open(self.label_path, "r") as j:
+            self.data_list = json.load(j)
+        print(f"==>> abnormal 데이터 로딩 완료")
 
     def __len__(self):
         return len(self.data_list)
 
     def __getitem__(self, idx):
-        file_name = self.data_list[idx]
+        file_info = self.data_list[str(idx)]
 
-        feature_npy = np.load(self.path + file_name)
+        feature_npy = np.load(self.path + file_info["filename"])
         # feature_npy.shape: (12, 710)
 
-        file_name = file_name.split("/")[-1].split(".")[0]
-
-        frame_label = self.label_list[file_name]
+        # file_name = file_info["filename"].split("/")[-1].split(".")[0]
 
         gts = np.zeros(192)
         # 이상행동 영상 180 프레임 => 12 * 16 = 192 가 되도록 길이 연장
 
-        for key, (start, end) in frame_label.items():
+        for start, end in zip(file_info["frames_start"], file_info["frames_end"]):
             gts[int(start) - 1 : int(end)] = 1
 
         for i in range(12):
