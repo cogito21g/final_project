@@ -441,23 +441,25 @@ def train(
                         corrects = torch.sum(pred_correct).item()
 
                         pred = (pred.squeeze()).detach().cpu().numpy()
-                        pred_abnormal_np = np.zeros(abnormal_gt.size(1))
-                        pred_normal_np = np.zeros(abnormal_gt.size(1))
+                        # pred_abnormal_np = np.zeros(abnormal_gt.size(1))
+                        # pred_normal_np = np.zeros(abnormal_gt.size(1))
 
-                        step = np.array([i for i in range(abnormal_input.size(1) + 1)])
+                        # step = np.array([i for i in range(abnormal_input.size(1) + 1)])
 
-                        for j in range(abnormal_input.size(1)):
-                            pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
-                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[abnormal_input.size(1) + j]
+                        # for j in range(abnormal_input.size(1)):
+                        #     pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
+                        #     pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[abnormal_input.size(1) + j]
 
-                        pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
+                        # pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
 
-                        abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
-                        normal_gt = np.zeros_like(abnormal_gt)
-                        gt_np = np.concatenate((abnormal_gt, normal_gt), axis=0)
+                        # abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
+                        abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
+                        normal_gt = np.zeros_like(abnormal_gt2)
+                        gt_np = np.concatenate((abnormal_gt2, normal_gt), axis=0)
 
                         try:
-                            auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
+                            # auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
+                            auc = roc_auc_score(y_true=gt_np, y_score=pred)
                             total_n_auc += auc
                             total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
                             total_n_loss += val_loss.item()
@@ -500,17 +502,18 @@ def train(
                         corrects = torch.sum(pred_correct).item()
 
                         pred = (pred.squeeze()).detach().cpu().numpy()
-                        pred_abnormal_np = np.zeros(abnormal_gt.size(1))
+                        # pred_abnormal_np = np.zeros(abnormal_gt.size(1))
 
-                        step = np.array([i for i in range(abnormal_input.size(1) + 1)])
+                        # step = np.array([i for i in range(abnormal_input.size(1) + 1)])
 
-                        for j in range(abnormal_input.size(1)):
-                            pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
+                        # for j in range(abnormal_input.size(1)):
+                        #     pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
 
-                        abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
+                        abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
 
                         try:
-                            auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
+                            # auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
+                            auc = roc_auc_score(y_true=abnormal_gt2, y_score=pred)
                             total_auc += auc
                             total_n_corrects += corrects / abnormal_input.size(1)
                             # normal + abnormal 24개와 다르게 abnormal 12개만 있음 -> /12 => 2/24
