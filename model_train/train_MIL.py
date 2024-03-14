@@ -95,6 +95,8 @@ def parse_args():
     # https://stackoverflow.com/questions/60999816/argparse-not-parsing-boolean-arguments
     # mixed precision 사용할 지 여부
 
+    parser.add_argument("--use_extra", action="store_false")
+
     # parser.add_argument("--wandb_mode", type=str, default="online")
     parser.add_argument("--wandb_mode", type=str, default="disabled")
     # wandb mode
@@ -138,358 +140,7 @@ def train(
     resume_name,
     seed,
     # mp,
-    wandb_mode,
-    wandb_run_name,
-):
-
-    time_start = datetime.now()
-
-    train_start = time_start.strftime("%Y%m%d_%H%M%S")
-
-    set_seed(seed)
-
-    if not osp.exists(model_dir):
-        os.makedirs(model_dir)
-
-    batch_size = batch_size
-
-    val_batch_size = 1
-    val_num_workers = 0
-
-    # -- early stopping flag
-    patience = patience
-    counter = 0
-
-    # 데이터셋
-    dataset = NormalVMAE(
-        model_size=model_size,
-        root=normal_root_dir,
-    )
-
-    valid_data_size = len(dataset) // 10
-
-    train_data_size = len(dataset) - valid_data_size
-
-    train_dataset, valid_dataset = random_split(dataset, lengths=[train_data_size, valid_data_size])
-
-    normal_train_loader = DataLoader(
-        dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=num_workers
-    )
-
-    normal_valid_loader = DataLoader(
-        dataset=valid_dataset,
-        batch_size=val_batch_size,
-        shuffle=False,
-        drop_last=True,
-        num_workers=val_num_workers,
-    )
-
-    abnormal_train_dataset = AbnormalVMAE(
-        model_size=model_size,
-        root=abnormal_root_dir,
-        label_root=json_dir,
-    )
-    abnormal_valid_dataset = AbnormalVMAE(
-        is_train=0,
-        model_size=model_size,
-        root=abnormal_root_dir,
-        label_root=json_dir,
-    )
-
-    abnormal_train_loader = DataLoader(
-        dataset=abnormal_train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
-    )
-
-    abnormal_valid_loader = DataLoader(
-        dataset=abnormal_valid_dataset, batch_size=val_batch_size, shuffle=True, num_workers=val_num_workers
-    )
-
-    data_load_end = datetime.now()
-    data_load_time = data_load_end - time_start
-    data_load_time = str(data_load_time).split(".")[0]
-    print(f"==>> data_load_time: {data_load_time}")
-
-    # Initialize the LSTM autoencoder model
-    model = MILClassifier(drop_p=drop_rate)
-
-    load_dict = None
-
-    if resume_name:
-        load_dict = torch.load(osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu")
-        model.load_state_dict(load_dict["model_state_dict"])
-
-    model.to(device)
-
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-6)
-
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[25, 50], gamma=0.1)
-
-    if resume_name:
-        optimizer.load_state_dict(load_dict["optimizer_state_dict"])
-        scheduler.load_state_dict(load_dict["scheduler_state_dict"])
-    #     scaler.load_state_dict(load_dict["scaler_state_dict"])
-
-    criterion = nn.BCELoss()
-    MIL_criterion = MIL
-
-    print(f"Start training..")
-
-    wandb.init(
-        project="VAD",
-        entity="pao-kim-si-woong",
-        config={
-            "lr": learning_rate,
-            "dataset": "무인매장",
-            "n_epochs": max_epoch,
-            "loss": "BCE",
-            "notes": "VAD 실험",
-        },
-        name=wandb_run_name + "_" + train_start,
-        mode=wandb_mode,
-    )
-
-    wandb.watch((model,))
-
-    best_loss = np.inf
-    best_auc = 0
-
-    total_batches = len(normal_train_loader)
-
-    for epoch in range(max_epoch):
-        model.train()
-
-        epoch_start = datetime.now()
-
-        epoch_loss = 0
-
-        for step, (abnormal_inputs, normal_inputs) in tqdm(
-            enumerate(zip(abnormal_train_loader, normal_train_loader)),
-            total=total_batches,
-        ):
-
-            abnormal_input, abnormal_gt = abnormal_inputs
-            # (batch_size, 12, 710), (batch_size, 12)
-            normal_input, normal_gt = normal_inputs
-            # (batch_size, 12, 710), (batch_size, 12)
-            inputs, gts = torch.cat((abnormal_input, normal_input), dim=1), torch.cat(
-                (abnormal_gt, normal_gt), dim=1
-            )
-            # inputs는 (batch_size, 24, 710), gts는 (batch_size, 24)
-
-            # batch_size = inputs.shape[0]
-
-            inputs = inputs.view(-1, inputs.size(-1)).to(device)
-            # (batch_size * 24, 710)
-            gts = gts.view(-1, 1).to(device)
-            # (batch_size * 24, 1)
-
-            optimizer.zero_grad()
-
-            pred = model(inputs)
-            # pred는 (batch_size * 24, 1)
-
-            loss = criterion(pred, gts)
-            # MIL_loss = MIL_criterion(pred, batch_size)
-
-            loss.backward()
-            optimizer.step()
-
-            epoch_loss += loss
-
-        epoch_mean_loss = (epoch_loss / total_batches).item()
-
-        train_end = datetime.now()
-        train_time = train_end - epoch_start
-        train_time = str(train_time).split(".")[0]
-        print(f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)}")
-
-        if (epoch + 1) % save_interval == 0:
-
-            ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_latest.pth")
-
-            states = {
-                "epoch": epoch,
-                "model_name": model_name,
-                "model_state_dict": model.state_dict(),  # 모델의 state_dict 저장
-                "optimizer_state_dict": optimizer.state_dict(),
-                "scheduler_state_dict": scheduler.state_dict(),
-                # "scaler_state_dict": scaler.state_dict(),
-            }
-
-            torch.save(states, ckpt_fpath)
-
-        # validation 주기에 따라 loss를 출력하고 best model을 저장합니다.
-        if (epoch + 1) % val_interval == 0:
-
-            print(f"Start validation #{epoch+1:2d}")
-            model.eval()
-
-            with torch.no_grad():
-                total_loss = 0
-                total_n_corrects = 0
-                total_auc = 0
-                error_count = 0
-
-                for step, (abnormal_inputs, normal_inputs) in tqdm(
-                    enumerate(zip(abnormal_valid_loader, normal_valid_loader)), total=len(normal_valid_loader)
-                ):
-                    abnormal_input, abnormal_gt = abnormal_inputs
-                    # (val_batch_size, 12, 710), (val_batch_size, 192)
-                    normal_input, normal_gt = normal_inputs
-                    # (val_batch_size, 12, 710), (val_batch_size, 12)
-
-                    abnormal_gt2 = torch.max(abnormal_gt.view(-1, 12, 16), dim=2)[0]
-                    # (val_batch_size, 12)
-
-                    inputs = torch.cat((abnormal_input, normal_input), dim=1)
-                    gts = torch.cat((abnormal_gt2, normal_gt), dim=1)
-                    # inputs는 (val_batch_size, 24, 710), gts는 (val_batch_size, 24)
-
-                    inputs = inputs.view(-1, inputs.size(-1)).to(device)
-                    # (val_batch_size * 24, 710)
-                    gts = gts.view(-1, 1).to(device)
-                    # (val_batch_size * 24, 1)
-
-                    pred = model(inputs)
-                    # pred는 (val_batch_size * 24, 1)
-
-                    val_loss = criterion(pred, gts)
-                    # if val_loss > 2:
-                    #     print(f"==>> pred: {pred}")
-                    #     print(f"==>> gts: {gts}")
-                    #     counter = patience + 1
-
-                    # val_MIL_loss = MIL_criterion(pred, val_batch_size)
-
-                    pred_correct = pred > thr
-                    gts_correct = gts > thr
-
-                    pred_correct = pred_correct == gts_correct
-                    corrects = torch.sum(pred_correct).item()
-
-                    pred = (pred.squeeze()).detach().cpu().numpy()
-                    pred_abnormal_np = np.zeros(180)
-                    pred_normal_np = np.zeros(180)
-
-                    step = np.array([i for i in range(13)])
-
-                    for j in range(12):
-                        pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
-                        pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[12 + j]
-
-                    pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
-
-                    abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()[:180]
-                    normal_gt = np.zeros(180)
-                    gt_np = np.concatenate((abnormal_gt, normal_gt), axis=0)
-
-                    try:
-                        auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
-                        total_auc += auc
-                        total_n_corrects += corrects
-                        total_loss += val_loss
-                    except ValueError:
-                        # print(
-                        #     "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case."
-                        # )
-                        # total_auc += 0
-                        error_count += 1
-                        # print("0~180 전부 0인 abnormal 영상 있음")
-
-                val_mean_loss = (total_loss / (len(normal_valid_loader) - error_count)).item()
-                val_auc = total_auc / (len(normal_valid_loader) - error_count)
-                val_accuracy = total_n_corrects / (24 * (len(normal_valid_loader) - error_count))
-                # for loop 한번에 abnormal 12, normal 12해서 24개 정답 확인
-
-            if best_loss > val_mean_loss:
-                print(f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
-                print(f"Save model in {model_dir}")
-                states = {
-                    "epoch": epoch,
-                    "model_name": model_name,
-                    "model_state_dict": model.state_dict(),  # 모델의 state_dict 저장
-                    # "optimizer_state_dict": optimizer.state_dict(),
-                    # "scheduler_state_dict": scheduler.state_dict(),
-                    # "scaler_state_dict": scaler.state_dict(),
-                    # best.pth는 inference에서만 쓰기?
-                }
-
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best.pth")
-                torch.save(states, best_ckpt_fpath)
-                best_loss = val_mean_loss
-                counter = 0
-            else:
-                counter += 1
-
-            if best_auc < val_auc:
-                print(f"Best auc performance at epoch: {epoch + 1}, {best_auc:.4f} -> {val_auc:.4f}")
-                print(f"Save model in {model_dir}")
-                states = {
-                    "epoch": epoch,
-                    "model_name": model_name,
-                    "model_state_dict": model.state_dict(),  # 모델의 state_dict 저장
-                    # "optimizer_state_dict": optimizer.state_dict(),
-                    # "scheduler_state_dict": scheduler.state_dict(),
-                    # "scaler_state_dict": scaler.state_dict(),
-                    # best.pth는 inference에서만 쓰기?
-                }
-
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best_auc.pth")
-                torch.save(states, best_ckpt_fpath)
-                best_auc = val_auc
-
-        new_wandb_metric_dict = {
-            "train_loss": epoch_mean_loss,
-            "valid_loss": val_mean_loss,
-            "valid_auc": val_auc,
-            "valid_accuracy": val_accuracy,
-            "learning_rate": scheduler.get_last_lr()[0],
-        }
-
-        wandb.log(new_wandb_metric_dict)
-
-        scheduler.step()
-
-        epoch_end = datetime.now()
-        epoch_time = epoch_end - epoch_start
-        epoch_time = str(epoch_time).split(".")[0]
-        print(
-            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}\nvalid_auc: {val_auc:.4f}\nvalid_accuracy: {val_accuracy:.2f}"
-        )
-        print(f"==>> error_count: {error_count}")
-
-        if counter > patience:
-            print("Early Stopping...")
-            break
-
-    time_end = datetime.now()
-    total_time = time_end - time_start
-    total_time = str(total_time).split(".")[0]
-    print(f"==>> total time: {total_time}")
-
-
-def train2(
-    normal_root_dir,
-    abnormal_root_dir,
-    json_dir,
-    model_dir,
-    model_name,
-    model_size,
-    device,
-    num_workers,
-    batch_size,
-    # val_num_workers,
-    # val_batch_size,
-    learning_rate,
-    max_epoch,
-    val_interval,
-    save_interval,
-    thr,
-    drop_rate,
-    patience,
-    resume_name,
-    seed,
-    # mp,
+    use_extra,
     wandb_mode,
     wandb_run_name,
 ):
@@ -613,9 +264,11 @@ def train2(
 
         epoch_start = datetime.now()
 
+        epoch_loss = 0
+        epoch_n_corrects = 0
         epoch_n_MIL_loss = 0
         epoch_n_loss = 0
-        epoch_loss = 0
+        epoch_n_n_corrects = 0
 
         norm_train_iter = iter(normal_train_loader)
         # iterator를 여기서 매번 새로 할당해줘야 iterator가 다시 처음부터 작동
@@ -631,6 +284,7 @@ def train2(
                 # (batch_size, 12, 710), (batch_size, 12)
                 normal_input, normal_gt = normal_inputs
                 # (batch_size, 12, 710), (batch_size, 12)
+
                 inputs, gts = torch.cat((abnormal_input, normal_input), dim=1), torch.cat(
                     (abnormal_gt, normal_gt), dim=1
                 )
@@ -650,15 +304,26 @@ def train2(
 
                 loss = criterion(pred, gts)
                 MIL_loss = MIL_criterion(pred, batch_size)
-                # sum_loss = loss + MIL_loss
-                # sum_loss.backward()
+                sum_loss = loss + MIL_loss
+                sum_loss.backward()
 
-                loss.backward()
+                # loss.backward()
                 optimizer.step()
+
+                pred_correct = pred > thr
+                gts_correct = gts > thr
+
+                pred_correct = pred_correct == gts_correct
+                corrects = torch.sum(pred_correct).item()
 
                 epoch_n_loss += loss
                 epoch_n_MIL_loss += MIL_loss
+
+                epoch_n_n_corrects += corrects
+
             except StopIteration:
+                if not use_extra:
+                    break
                 abnormal_input, abnormal_gt = abnormal_inputs
                 # (batch_size, 12, 710), (batch_size, 12)
 
@@ -677,11 +342,20 @@ def train2(
                 loss.backward()
                 optimizer.step()
 
+                pred_correct = pred > thr
+                gts_correct = gts > thr
+
+                pred_correct = pred_correct == gts_correct
+                corrects = torch.sum(pred_correct).item()
+
                 epoch_loss += loss
+                epoch_n_corrects += corrects * 2
 
         epoch_mean_loss = (epoch_loss / (total_batches - len(normal_train_loader))).item()
         epoch_n_mean_loss = (epoch_n_loss / len(normal_train_loader)).item()
         epoch_n_mean_MIL_loss = (epoch_n_MIL_loss / len(normal_train_loader)).item()
+        epoch_n_accuracy = epoch_n_n_corrects / (24 * batch_size * (len(normal_train_loader)))
+        epoch_accuracy = epoch_n_corrects / (24 * batch_size * (len(abnormal_train_loader)))
 
         train_end = datetime.now()
         train_time = train_end - epoch_start
@@ -689,6 +363,7 @@ def train2(
         print(
             f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)}\nn_loss: {round(epoch_n_mean_loss,4)}\nMIL_loss: {round(epoch_n_mean_MIL_loss,4)}"
         )
+        print(f"accuracy: {epoch_accuracy:.2f}\nn_accuracy: {epoch_n_accuracy:.2f}")
 
         if (epoch + 1) % save_interval == 0:
 
@@ -793,6 +468,8 @@ def train2(
                             error_n_count += 1
                             # print("0~180 전부 0인 abnormal 영상 있음")
                     except StopIteration:
+                        if not use_extra:
+                            break
                         abnormal_input, abnormal_gt = abnormal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 192)
 
@@ -896,8 +573,10 @@ def train2(
 
         new_wandb_metric_dict = {
             "train_loss": epoch_mean_loss,
+            "train_accuracy": epoch_accuracy,
             "train_n_loss": epoch_n_mean_loss,
             "train_n_MIL_loss": epoch_n_mean_MIL_loss,
+            "train_n_accuracy": epoch_n_accuracy,
             "valid_loss": val_mean_loss,
             "valid_auc": val_auc,
             "valid_accuracy": val_accuracy,
@@ -933,7 +612,7 @@ def train2(
 
 
 def main(args):
-    train2(**args.__dict__)
+    train(**args.__dict__)
 
 
 if __name__ == "__main__":
