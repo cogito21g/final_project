@@ -95,8 +95,8 @@ def parse_args():
     # https://stackoverflow.com/questions/60999816/argparse-not-parsing-boolean-arguments
     # mixed precision 사용할 지 여부
 
-    # parser.add_argument("--wandb_mode", type=str, default="online")
-    parser.add_argument("--wandb_mode", type=str, default="disabled")
+    parser.add_argument("--wandb_mode", type=str, default="online")
+    # parser.add_argument("--wandb_mode", type=str, default="disabled")
     # wandb mode
     parser.add_argument("--wandb_run_name", type=str, default="MIL")
     # wandb run name
@@ -443,7 +443,7 @@ def train(
             "valid_loss": val_mean_loss,
             "valid_auc": val_auc,
             "valid_accuracy": val_accuracy,
-            "learning_rate": scheduler.get_lr()[0],
+            "learning_rate": scheduler.get_last_lr()[0],
         }
 
         wandb.log(new_wandb_metric_dict)
