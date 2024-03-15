@@ -430,9 +430,9 @@ class AbnormalVMAE(Dataset):
         if self.is_train:
             gts = gts.reshape(11, 16)
             # (192) => (12, 16)로 변경
-            # gts = np.mean(gts, axis=1)
+            gts = np.mean(gts, axis=1)
             # 평균 내서 (12)로 변경
-            gts = np.max(gts, axis=1)
+            # gts = np.max(gts, axis=1)
 
         # @@ validation일때는 평균내지 않고 (192) numpy array 그대로 반환
 
