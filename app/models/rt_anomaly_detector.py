@@ -173,10 +173,7 @@ class RT_AnomalyDetector:
         # score graph 를 위한 score list
         self.scores = []
     
-    async def run(self, bytes, timestamp):
-        
-        data = np.frombuffer(bytes, dtype=np.uint8)
-        frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    async def run(self, frame, timestamp):
         
         # Define the standard frame size
         standard_width = 640

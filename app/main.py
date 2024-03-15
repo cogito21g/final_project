@@ -36,7 +36,7 @@ settings = get_settings()
 async def main_get(request:Request):
 	user = user_router.get_current_user(request)
 	if user:
-		return templates.TemplateResponse("main.html", {'request': request, 'token': user.email})
+		return templates.TemplateResponse("main.html", {'request': request, 'token': user})
 	else:
 		return templates.TemplateResponse("main.html", {'request': request, 'token': None})
 

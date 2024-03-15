@@ -107,7 +107,7 @@
                             <strong>비디오 정보</strong>
                         </button>
                         </h2>
-                        <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#accordionExample">
+                        <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionExample">
                         <div class="accordion-body">
                             <div class="row">
                             <div class="d-flex justify-content-center">
@@ -122,14 +122,14 @@
                             <p class="text-start">종류: 녹화 영상</p>
                             {% endif %}
                             </div>
-                            <div class="col">
+                            <!-- <div class="col">
                                 <p class="text-center">score flow<br></p>
                                 {% if video_info.score_url == "Nothing"%}
                                 <p class="text-center">이상행동이 탐지되지 않았습니다.</p>
                                 {% else %}
                                 <img src={{video_info.score_url}} type="image/png" alt="..." style="width: 100%; height: 300px;" />
                                 {% endif %}
-                            </div>
+                            </div> -->
                             </div>
                             </div>
                         </div>

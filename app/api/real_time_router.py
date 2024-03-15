@@ -54,7 +54,6 @@ s3 = boto3.client("s3",
                   aws_access_key_id=settings.AWS_ACCESS_KEY,
                   aws_secret_access_key=settings.AWS_SECRET_KEY)
 
-
 detector = None
 
 @router.get("")
@@ -120,13 +119,38 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             detector = RT_AnomalyDetector(video_info, s3, settings, db, websocket)
             detector.ready()
         
-        while True:
-            timestamp = datetime.now(pytz.timezone('Asia/Seoul'))
-            # Receive bytes from the websocket
-            bytes = await websocket.receive_bytes()
-            await detector.run(bytes, timestamp)
+        if video_info["video_url"] == "web":
+            while True:
+                timestamp = datetime.now(pytz.timezone('Asia/Seoul'))
+                # Receive bytes from the websocket
+                bytes = await websocket.receive_bytes()
+                data = np.frombuffer(bytes, dtype=np.uint8)
+                frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
+                await detector.run(frame, timestamp)
+                
+        else:
+            cap = cv2.VideoCapture(video_info["video_url"])
+            
+            while True:
+                success, frame = cap.read()
+                if not success:
+                    await websocket.send_text(f'카메라 연결에 실패했습니다.')
+                    break
+                else:
+                    timestamp = datetime.now(pytz.timezone('Asia/Seoul'))
+                    await detector.run(frame, timestamp)
+                    
+                    ret, buffer = cv2.imencode('.jpg', frame)
+                    await websocket.send_bytes(buffer.tobytes())
+                    
+                await asyncio.sleep(0.042)
             
     except WebSocketDisconnect:
+        await websocket.close()
+        
+    except Exception as e:
+        # 예외 발생 시 로그 기록 및 연결 종료
+        print(f"WebSocket error: {e}")
         await websocket.close()
     
     finally:
@@ -135,6 +159,35 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
         except:
             pass
         detector = None
+
+
+@router.get("/stream")
+async def get_stream(request: Request,
+    user_id: int = Query(...),
+    upload_id: int = Query(...),
+    db: Session = Depends(get_db)
+    ):
+    
+    user = get_current_user(request)
+        
+    video = crud.get_video(db=db, upload_id=upload_id)
+    uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
+    
+    video_info = {
+        "user_id": user_id,
+        "upload_id": upload_id,
+        "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
+        "upload_name": uploaded.name,
+        "thr": uploaded.thr,
+        "video_id": video.video_id,
+        "video_url": video.video_url,
+        "is_realtime": True
+    }
+    
+    # video_info = json.dumps(video_info)
+    
+    return templates.TemplateResponse("stream.html", {'request': request, 'token': user, 'video_info': video_info})
+
 
 # db 에서 실시간에서 저장되는 frame url 불러오는 코드    
 def fetch_data(db, upload_id):
@@ -171,8 +224,6 @@ async def get_stream(request: Request,
     ):
     
     user = get_current_user(request)
-    if not user:
-        return RedirectResponse(url="/")
         
     video = crud.get_video(db=db, upload_id=upload_id)
     uploaded = crud.get_upload(db=db, upload_id=video.upload_id)

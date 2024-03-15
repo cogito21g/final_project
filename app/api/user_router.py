@@ -100,15 +100,18 @@ async def logout_get(request: Request):
 def get_current_user(request:Request):
 	token = request.cookies.get("access_token", None)
 
-	if token:
-		payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-		email = payload.get("sub", None)
-		session = Session(db_engine)
-		user = session.query(models.User).filter(models.User.email == email).first()
-		session.close()
-		if user:
-			return user
+	try:
+		if token:
+			payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+			email = payload.get("sub", None)
+			session = Session(db_engine)
+			user = session.query(models.User).filter(models.User.email == email).first()
+			session.close()
+			if user:
+				return user
+			else:
+				return None
 		else:
 			return None
-	else:
-		return None
+	except:
+		return JWTError()
