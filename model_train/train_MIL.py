@@ -74,20 +74,20 @@ def parse_args():
     # random seed
 
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--num_workers", type=int, default=8)
+    parser.add_argument("--num_workers", type=int, default=0)
 
     parser.add_argument("--batch_size", type=int, default=30)
     # parser.add_argument("--val_batch_size", type=int, default=1)
     # parser.add_argument("--val_num_workers", type=int, default=0)
     parser.add_argument("--learning_rate", type=float, default=0.001)
-    parser.add_argument("--max_epoch", type=int, default=750)
+    parser.add_argument("--max_epoch", type=int, default=1000)
 
     parser.add_argument("--save_interval", type=int, default=1)
     parser.add_argument("--val_interval", type=int, default=1)
     parser.add_argument("--thr", type=float, default=0.25)
     parser.add_argument("--drop_rate", type=float, default=0.6)
 
-    parser.add_argument("--patience", type=int, default=700)
+    parser.add_argument("--patience", type=int, default=100)
 
     # parser.add_argument("--mp", action="store_false")
     # https://stackoverflow.com/questions/60999816/argparse-not-parsing-boolean-arguments
@@ -225,10 +225,12 @@ def train(
 
     model.to(device)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-6)
+    # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
+    # 1e-6 => 0.0010000000474974513
     optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[250, 500], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[750, 950], gamma=0.5)
 
     if resume_name:
         optimizer.load_state_dict(load_dict["optimizer_state_dict"])
@@ -455,7 +457,8 @@ def train(
                         normal_input, normal_gt = normal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 12)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        # abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
                         inputs = torch.cat((abnormal_input, normal_input), dim=1)
@@ -495,25 +498,27 @@ def train(
 
                         pred = (pred.squeeze()).detach().cpu().numpy()
 
-                        # pred_abnormal_np = np.zeros(abnormal_gt.size(1))
-                        # pred_normal_np = np.zeros(abnormal_gt.size(1))
+                        pred_abnormal_np = np.zeros(abnormal_gt.size(1))
+                        pred_normal_np = np.zeros(abnormal_gt.size(1))
 
-                        # step = np.array([i for i in range(abnormal_input.size(1) + 1)])
+                        step = np.array([i for i in range(abnormal_input.size(1) + 1)])
 
-                        # for j in range(abnormal_input.size(1)):
-                        #     pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
-                        #     pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[abnormal_input.size(1) + j]
+                        for j in range(abnormal_input.size(1)):
+                            pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
+                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[abnormal_input.size(1) + j]
 
-                        # pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
+                        pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
 
-                        # abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
-                        abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
-                        normal_gt = np.zeros_like(abnormal_gt2)
-                        gt_np = np.concatenate((abnormal_gt2, normal_gt), axis=0)
+                        abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
+                        # abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
+                        # normal_gt = np.zeros_like(abnormal_gt2)
+                        normal_gt = np.zeros_like(abnormal_gt)
+                        # gt_np = np.concatenate((abnormal_gt2, normal_gt), axis=0)
+                        gt_np = np.concatenate((abnormal_gt, normal_gt), axis=0)
 
                         try:
-                            # auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
-                            auc = roc_auc_score(y_true=gt_np, y_score=pred)
+                            auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
+                            # auc = roc_auc_score(y_true=gt_np, y_score=pred)
                             total_n_auc += auc
                             total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
                             total_n_loss += val_loss.item()
@@ -537,7 +542,8 @@ def train(
                         abnormal_input, abnormal_gt = abnormal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 192)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        # abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
                         inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
@@ -567,18 +573,19 @@ def train(
                         corrects = torch.sum(pred_correct).item()
 
                         pred = (pred.squeeze()).detach().cpu().numpy()
-                        # pred_abnormal_np = np.zeros(abnormal_gt.size(1))
+                        pred_abnormal_np = np.zeros(abnormal_gt.size(1))
 
-                        # step = np.array([i for i in range(abnormal_input.size(1) + 1)])
+                        step = np.array([i for i in range(abnormal_input.size(1) + 1)])
 
-                        # for j in range(abnormal_input.size(1)):
-                        #     pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
+                        for j in range(abnormal_input.size(1)):
+                            pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
 
-                        abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
+                        # abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
+                        abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
 
                         try:
-                            # auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
-                            auc = roc_auc_score(y_true=abnormal_gt2, y_score=pred)
+                            auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
+                            # auc = roc_auc_score(y_true=abnormal_gt2, y_score=pred)
                             total_auc += auc
                             total_n_corrects += corrects / abnormal_input.size(1)
                             # normal + abnormal 24개와 다르게 abnormal 12개만 있음 -> /12 => 2/24
@@ -632,9 +639,9 @@ def train(
                 best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best.pth")
                 torch.save(states, best_ckpt_fpath)
                 best_loss = val_mean_loss
-                counter = 0
-            else:
-                counter += 1
+                # counter = 0
+            # else:
+            #     counter += 1
 
             if best_auc < val_auc:
                 print(f"Best auc performance at epoch: {epoch + 1}, {best_auc:.4f} -> {val_auc:.4f}")
@@ -652,6 +659,9 @@ def train(
                 best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best_auc.pth")
                 torch.save(states, best_ckpt_fpath)
                 best_auc = val_auc
+                counter = 0
+            else:
+                counter += 1
 
         new_wandb_metric_dict = {
             "train_loss": epoch_mean_loss,
