@@ -175,10 +175,10 @@ def send_email(data: list, to_mail: str, smtp):
     # 메일 본문 내용
     content = f"""안녕하세요. Naver AI Tech 6기 '혁신비전테크' 팀 입니다.
 
-    실시간 이상행동 탐지 중 이상행동이 발견되어 해당 장면을 전달 드립니다.
+실시간 이상행동 탐지 중 이상행동이 발견되어 해당 시간대를 전달 드립니다.
     
-    {data[-6][-1]} ~ {data[-1][-1]} 시간을 확인해주세요.
-    """
+{data[-6][-1]} ~ {data[-1][-1]} 시간을 확인해주세요.
+"""
 
     content_part = MIMEText(content, "plain")
     msg.attach(content_part)
