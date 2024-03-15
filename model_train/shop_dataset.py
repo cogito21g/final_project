@@ -402,7 +402,7 @@ class AbnormalVMAE(Dataset):
             else:
                 self.label_path = label_root + "/val/abnormal_val_base.json"
 
-        with open(self.label_path, "r") as j:
+        with open(self.label_path, "r", encoding="utf-8") as j:
             self.data_list = json.load(j)
         print(f"==>> abnormal 데이터 로딩 완료")
 

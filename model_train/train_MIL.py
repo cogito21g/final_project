@@ -37,7 +37,7 @@ def parse_args():
         type=str,
         default=os.environ.get(
             "SM_CHANNEL_NORMAL_NPY",
-            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/normal",
+            "../datapreprocess/npy/normal",
         ),
     )
     # 학습 데이터 경로
@@ -46,7 +46,7 @@ def parse_args():
         type=str,
         default=os.environ.get(
             "SM_CHANNEL_ABNORMAL_NPY",
-            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/abnormal",
+            "../datapreprocess/npy/abnormal",
         ),
     )
     parser.add_argument(
@@ -54,13 +54,11 @@ def parse_args():
         type=str,
         default=os.environ.get(
             "SM_CHANNEL_ABNORMAL_JSON",
-            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal",
+            "../datapreprocess/json/abnormal",
         ),
     )
     # abnormal 검증셋 csv, json파일 경로
-    parser.add_argument(
-        "--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "/data/ephemeral/home/pths")
-    )
+    parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "../pths"))
     # pth 파일 저장 경로
 
     parser.add_argument("--model_name", type=str, default="MIL")
@@ -200,7 +198,11 @@ def train(
     )
 
     abnormal_train_loader = DataLoader(
-        dataset=abnormal_train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+        dataset=abnormal_train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=True,
+        num_workers=num_workers,
     )
 
     abnormal_valid_loader = DataLoader(
@@ -210,7 +212,7 @@ def train(
     data_load_end = datetime.now()
     data_load_time = data_load_end - time_start
     data_load_time = str(data_load_time).split(".")[0]
-    print(f"==>> data_load_time: {data_load_time}")
+    print(f"==>> {model_size} data_load_time: {data_load_time}")
 
     # Initialize the LSTM autoencoder model
     model = MILClassifier(drop_p=drop_rate)
@@ -270,6 +272,11 @@ def train(
         epoch_n_loss = 0
         epoch_n_n_corrects = 0
 
+        epoch_abnormal_max = 0
+        epoch_abnormal_mean = 0
+        epoch_normal_max = 0
+        epoch_normal_mean = 0
+
         norm_train_iter = iter(normal_train_loader)
         # iterator를 여기서 매번 새로 할당해줘야 iterator가 다시 처음부터 작동
 
@@ -310,6 +317,15 @@ def train(
                 # loss.backward()
                 optimizer.step()
 
+                pred_a = pred.view(batch_size, 2, abnormal_input.size(1))[:, 0, :]
+                pred_n = pred.view(batch_size, 2, abnormal_input.size(1))[:, 1, :]
+
+                pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
+                pred_n_max = torch.mean(torch.max(pred_n, dim=-1)[0])
+
+                pred_a_mean = torch.mean(pred_a)
+                pred_n_mean = torch.mean(pred_n)
+
                 pred_correct = pred > thr
                 gts_correct = gts > thr
 
@@ -320,6 +336,11 @@ def train(
                 epoch_n_MIL_loss += MIL_loss.item()
 
                 epoch_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
+
+                epoch_abnormal_max += pred_a_max.item()
+                epoch_abnormal_mean += pred_a_mean.item()
+                epoch_normal_max += pred_n_max.item()
+                epoch_normal_mean += pred_n_mean.item()
 
             except StopIteration:
                 if not use_extra:
@@ -343,6 +364,13 @@ def train(
                 loss.backward()
                 optimizer.step()
 
+                # print(f"==>> pred.shape: {pred.shape}")
+                pred_a = pred.view(batch_size, abnormal_input.size(1))
+
+                pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
+
+                pred_a_mean = torch.mean(pred_a)
+
                 pred_correct = pred > thr
                 gts_correct = gts > thr
 
@@ -352,19 +380,29 @@ def train(
                 epoch_loss += loss.item()
                 epoch_n_corrects += corrects / abnormal_input.size(1)
 
+                epoch_abnormal_max += pred_a_max.item()
+                epoch_abnormal_mean += pred_a_mean.item()
+
         epoch_mean_loss = epoch_loss / (total_batches - len(normal_train_loader))
         epoch_n_mean_loss = epoch_n_loss / len(normal_train_loader)
         epoch_n_mean_MIL_loss = epoch_n_MIL_loss / len(normal_train_loader)
         epoch_n_accuracy = epoch_n_n_corrects / (batch_size * (len(normal_train_loader)))
         epoch_accuracy = epoch_n_corrects / (batch_size * (len(abnormal_train_loader)))
 
+        epoch_mean_normal_max = epoch_normal_max / len(normal_train_loader)
+        epoch_mean_normal_mean = epoch_normal_mean / len(normal_train_loader)
+        epoch_mean_abnormal_max = epoch_abnormal_max / total_batches
+        epoch_mean_abnormal_mean = epoch_abnormal_mean / total_batches
+
         train_end = datetime.now()
         train_time = train_end - epoch_start
         train_time = str(train_time).split(".")[0]
         print(
-            f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)}\nn_loss: {round(epoch_n_mean_loss,4)}\nMIL_loss: {round(epoch_n_mean_MIL_loss,4)}"
+            f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)} n_loss: {round(epoch_n_mean_loss,4)} MIL_loss: {round(epoch_n_mean_MIL_loss,4)}"
         )
-        print(f"accuracy: {epoch_accuracy:.2f}\nn_accuracy: {epoch_n_accuracy:.2f}")
+        print(f"accuracy: {epoch_accuracy:.2f} n_accuracy: {epoch_n_accuracy:.2f}")
+        print(f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}")
+        print(f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}")
 
         if (epoch + 1) % save_interval == 0:
 
@@ -389,6 +427,7 @@ def train(
 
             with torch.no_grad():
                 total_n_loss = 0
+                total_n_MIL_loss = 0
                 total_n_n_corrects = 0
                 total_n_auc = 0
                 total_loss = 0
@@ -396,6 +435,11 @@ def train(
                 total_auc = 0
                 error_n_count = 0
                 error_count = 0
+
+                total_abnormal_max = 0
+                total_abnormal_mean = 0
+                total_normal_max = 0
+                total_normal_mean = 0
 
                 norm_valid_iter = iter(normal_valid_loader)
                 # iterator를 여기서 매번 새로 할당해줘야 iterator가 다시 처음부터 작동
@@ -432,7 +476,16 @@ def train(
                         #     print(f"==>> gts: {gts}")
                         #     counter = patience + 1
 
-                        # val_MIL_loss = MIL_criterion(pred, val_batch_size)
+                        val_MIL_loss = MIL_criterion(pred, val_batch_size, abnormal_input.size(1))
+
+                        pred_a = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 0, :]
+                        pred_n = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 1, :]
+
+                        pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
+                        pred_n_max = torch.mean(torch.max(pred_n, dim=-1)[0])
+
+                        pred_a_mean = torch.mean(pred_a)
+                        pred_n_mean = torch.mean(pred_n)
 
                         pred_correct = pred > thr
                         gts_correct = gts > thr
@@ -441,6 +494,7 @@ def train(
                         corrects = torch.sum(pred_correct).item()
 
                         pred = (pred.squeeze()).detach().cpu().numpy()
+
                         # pred_abnormal_np = np.zeros(abnormal_gt.size(1))
                         # pred_normal_np = np.zeros(abnormal_gt.size(1))
 
@@ -463,6 +517,13 @@ def train(
                             total_n_auc += auc
                             total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
                             total_n_loss += val_loss.item()
+                            total_n_MIL_loss += val_MIL_loss.item()
+
+                            total_abnormal_max += pred_a_max.item()
+                            total_abnormal_mean += pred_a_mean.item()
+                            total_normal_max += pred_n_max.item()
+                            total_normal_mean += pred_n_mean.item()
+
                         except ValueError:
                             # print(
                             #     "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case."
@@ -493,7 +554,11 @@ def train(
                         #     print(f"==>> gts: {gts}")
                         #     counter = patience + 1
 
-                        # val_MIL_loss = MIL_criterion(pred, val_batch_size)
+                        pred_a = pred.view(val_batch_size, abnormal_input.size(1))
+
+                        pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
+
+                        pred_a_mean = torch.mean(pred_a)
 
                         pred_correct = pred > thr
                         gts_correct = gts > thr
@@ -518,6 +583,9 @@ def train(
                             total_n_corrects += corrects / abnormal_input.size(1)
                             # normal + abnormal 24개와 다르게 abnormal 12개만 있음 -> /12 => 2/24
                             total_loss += val_loss.item()
+
+                            total_abnormal_max += pred_a_max.item()
+                            total_abnormal_mean += pred_a_mean.item()
                         except ValueError:
                             # print(
                             #     "ValueError: Only one class present in y_true. ROC AUC score is not defined in that case."
@@ -527,6 +595,7 @@ def train(
                             # print("0~180 전부 0인 abnormal 영상 있음")
 
                 val_n_mean_loss = total_n_loss / (len(normal_valid_loader) - error_n_count)
+                val_n_mean_MIL_loss = total_n_MIL_loss / (len(normal_valid_loader) - error_n_count)
                 val_n_auc = total_n_auc / (len(normal_valid_loader) - error_n_count)
                 val_n_accuracy = total_n_n_corrects / ((len(normal_valid_loader) - error_n_count))
                 val_mean_loss = total_loss / (
@@ -537,6 +606,15 @@ def train(
                     (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
                 )
                 # for loop 한번에 abnormal 12, normal 12해서 24개 정답 확인
+
+                val_mean_normal_max = total_normal_max / (len(normal_valid_loader) - error_n_count)
+                val_mean_normal_mean = total_normal_mean / (len(normal_valid_loader) - error_n_count)
+                val_mean_abnormal_max = total_abnormal_max / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
+                val_mean_abnormal_mean = total_abnormal_mean / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
 
             if best_loss > val_mean_loss:
                 print(f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
@@ -585,9 +663,18 @@ def train(
             "valid_auc": val_auc,
             "valid_accuracy": val_accuracy,
             "valid_n_loss": val_n_mean_loss,
+            "valid_n_MIL_loss": val_n_mean_MIL_loss,
             "valid_n_auc": val_n_auc,
             "valid_n_accuracy": val_n_accuracy,
             "learning_rate": scheduler.get_last_lr()[0],
+            "train_abnormal_max_mean": epoch_mean_abnormal_max,
+            "train_abnormal_mean": epoch_mean_abnormal_mean,
+            "train_normal_max_mean": epoch_mean_normal_max,
+            "train_normal_mean": epoch_mean_normal_mean,
+            "valid_abnormal_max_mean": val_mean_abnormal_max,
+            "valid_abnormal_mean": val_mean_abnormal_mean,
+            "valid_normal_max_mean": val_mean_normal_max,
+            "valid_normal_mean": val_mean_normal_mean,
         }
 
         wandb.log(new_wandb_metric_dict)
@@ -598,11 +685,15 @@ def train(
         epoch_time = epoch_end - epoch_start
         epoch_time = str(epoch_time).split(".")[0]
         print(
-            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}\nvalid_auc: {val_auc:.4f}\nvalid_accuracy: {val_accuracy:.2f}"
+            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)} valid_auc: {val_auc:.4f} valid_accuracy: {val_accuracy:.2f}"
         )
         print(
-            f"valid_n_loss: {round(val_n_mean_loss,4)}\nvalid_n_auc: {val_n_auc:.4f}\nvalid_n_accuracy: {val_n_accuracy:.2f}"
+            f"valid_n_loss: {round(val_n_mean_loss,4)} valid_n_MIL_loss: {round(val_n_mean_MIL_loss,4)}\nvalid_n_auc: {val_n_auc:.4f} valid_n_accuracy: {val_n_accuracy:.2f}"
         )
+        print(
+            f"==>> val_abnormal_max_mean: {val_mean_abnormal_max} val_abnormal_mean: {val_mean_abnormal_mean}"
+        )
+        print(f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}")
         print(f"==>> error_count: {error_count}")
 
         if counter > patience:
