@@ -19,6 +19,8 @@ datapreprocess/csv/normal/train/*.csv
 datapreprocess/csv/normal/val/*.csv
 datapreprocess/json/abnormal/train/
 datapreprocess/json/abnormal/val/
+datapreprocess/json/abnormal/TS_03.이상행동_14.교통약자_train/
+datapreprocess/json/abnormal/TS_03.이상행동_14.교통약자_val/
 datapreprocess/json/normal/train/
 datapreprocess/json/normal/val/
 datapreprocess/*.csv
