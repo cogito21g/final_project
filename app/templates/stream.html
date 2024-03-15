@@ -218,7 +218,7 @@
 
             // CCTV URL 일 떄 실행
             const startCCTVAnomalyDetection = (image, canvas) => {
-                const socket = new WebSocket('ws://10.28.224.136:30011/real_time/ws');
+                const socket = new WebSocket('ws://10.28.224.140:30121/real_time/ws');
                 console.log('Attempting to open WebSocket connection...');
                 const logWindow = document.getElementById('log');
                 logWindow.innerHTML += '이상행동 탐지 서버와 연결 중 ...' + '<br>';
@@ -356,7 +356,7 @@
         
             // Update UI initially and periodically
             updateUI();
-            setInterval(updateUI, 5000);  // Fetch data every 5 seconds
+            setInterval(updateUI, 1000);  // Fetch data every 5 seconds
         </script>
         
     </body>

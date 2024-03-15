@@ -1,12 +1,20 @@
+import smtplib
 from datetime import timedelta, datetime, date
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func
 from passlib.context import CryptContext
 from models import models
 from schemas.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 
+from core.config import get_settings
 from core.security import get_password_hash, verify_password
 from models.models import User
+
+
+settings = get_settings()
 
 ## User
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -146,3 +154,37 @@ def update_complete_status(db: Session, upload_id: int):
     if complete_record and not complete_record.completed:
         complete_record.completed = True
         db.commit()
+
+# email feat
+def create_smtp_server():
+
+    smtp = smtplib.SMTP_SSL(settings.SMTP_ADDRESS, settings.SMTP_PORT)      # smtp 서버와 연결
+    smtp.login(settings.MAIL_ACCOUNT, settings.MAIL_PASSWORD)               # 프로젝트 계정으로 로그인
+    
+    return smtp
+
+
+def send_email(data: list, to_mail: str, smtp):
+
+    # 메일 기본 정보 설정
+    msg = MIMEMultipart()
+    msg["subject"] = f"[IVT] 이상행동 분석 중 결과 전달 메일입니다."
+    msg["from"] = settings.MAIL_ACCOUNT
+    msg["To"] = to_mail
+
+    # 메일 본문 내용
+    content = f"""안녕하세요. Naver AI Tech 6기 '혁신비전테크' 팀 입니다.
+
+    실시간 이상행동 탐지 중 이상행동이 발견되어 해당 장면을 전달 드립니다.
+    
+    {data[-6][-1]} ~ {data[-1][-1]} 시간을 확인해주세요.
+    """
+
+    content_part = MIMEText(content, "plain")
+    msg.attach(content_part)
+
+    smtp.sendmail(settings.MAIL_ACCOUNT, to_mail, msg.as_string())
+
+    smtp.quit()
+
+    # 탐지 이미지 첨부 (향후 업데이트 예정)

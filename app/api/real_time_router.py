@@ -49,6 +49,7 @@ s3 = boto3.client("s3",
                   aws_secret_access_key=settings.AWS_SECRET_KEY)
 
 detector = None
+last_emailed_time = datetime.strptime("0:00:00", '%H:%M:%S')
 
 @router.get("")
 async def realtime_get(request: Request):
@@ -211,8 +212,31 @@ def fetch_data(db, upload_id):
     return {"frame_urls": frame_objs}
 
 @router.get("/fetch_data")
-async def fetch_frame_data(upload_id: int = Query(...),
+async def fetch_frame_data(request: Request,
+                           upload_id: int = Query(...),
                            db: Session = Depends(get_db)):
+    smtp = crud.create_smtp_server()
     
+    token = request.cookies.get("access_token", None)
+    token = ast.literal_eval(token)
+    user_mail = token['email']
+
     frame_data = fetch_data(db, upload_id)
+
+    global last_emailed_time
+
+    # 데이터가 5개 모이기 전까지는 넘어가기
+    if len(frame_data["frame_urls"]) < 6:
+        return frame_data
+    
+    # [-1], [-5] 데이터가 5초 동안 계속해서 발생했는지 확인
+    last = datetime.strptime(frame_data['frame_urls'][-1][-1], '%H:%M:%S')
+    check = datetime.strptime(frame_data['frame_urls'][-6][-1], '%H:%M:%S')
+
+    if (last - check) == timedelta(seconds=5):      # 연속적으로 6초간 지속되면
+
+        if not check <= last_emailed_time <= last:  # 확인했던 시간 내에 메일을 보낸 적이 없다면 메일 발송
+            crud.send_email(data=frame_data["frame_urls"], to_mail=user_mail, smtp=smtp)             # 이메일 발송
+            last_emailed_time = last                # 메일을 보내고 마지막 데이터 시간으로 보낸 시간 저장
+
     return frame_data
