@@ -50,9 +50,19 @@ class MILClassifier(nn.Module):
         super().__init__()
         self.classifier = nn.Sequential(
             nn.Linear(input_dim, 512),
+            # nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(drop_p),
+            nn.Linear(512, 1024),
+            # nn.BatchNorm1d(1024),
+            nn.ReLU(),
+            nn.Dropout(drop_p),
+            nn.Linear(1024, 512),
+            # nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(drop_p),
             nn.Linear(512, 32),
+            # nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.Dropout(drop_p),
             nn.Linear(32, 1),
@@ -63,9 +73,13 @@ class MILClassifier(nn.Module):
         self.weight_init()
 
     def weight_init(self):
-        for layer in self.classifier:
-            if type(layer) == nn.Linear:
-                nn.init.xavier_normal_(layer.weight)
+        # for layer in self.classifier:
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
         x = self.classifier(x)

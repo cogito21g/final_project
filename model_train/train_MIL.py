@@ -230,7 +230,7 @@ def train(
     optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
     # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[750, 950], gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1000, 1500], gamma=0.5)
 
     if resume_name:
         optimizer.load_state_dict(load_dict["optimizer_state_dict"])
