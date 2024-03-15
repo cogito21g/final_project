@@ -316,31 +316,31 @@ def train(
 
                 # loss.backward()
                 optimizer.step()
+                with torch.no_grad():
+                    pred_a = pred.view(batch_size, 2, abnormal_input.size(1))[:, 0, :]
+                    pred_n = pred.view(batch_size, 2, abnormal_input.size(1))[:, 1, :]
 
-                pred_a = pred.view(batch_size, 2, abnormal_input.size(1))[:, 0, :]
-                pred_n = pred.view(batch_size, 2, abnormal_input.size(1))[:, 1, :]
+                    pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
+                    pred_n_max = torch.mean(torch.max(pred_n, dim=-1)[0])
 
-                pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
-                pred_n_max = torch.mean(torch.max(pred_n, dim=-1)[0])
+                    pred_a_mean = torch.mean(pred_a)
+                    pred_n_mean = torch.mean(pred_n)
 
-                pred_a_mean = torch.mean(pred_a)
-                pred_n_mean = torch.mean(pred_n)
+                    pred_correct = pred > thr
+                    gts_correct = gts > thr
 
-                pred_correct = pred > thr
-                gts_correct = gts > thr
+                    pred_correct = pred_correct == gts_correct
+                    corrects = torch.sum(pred_correct).item()
 
-                pred_correct = pred_correct == gts_correct
-                corrects = torch.sum(pred_correct).item()
+                    epoch_n_loss += loss.item()
+                    epoch_n_MIL_loss += MIL_loss.item()
 
-                epoch_n_loss += loss.item()
-                epoch_n_MIL_loss += MIL_loss.item()
+                    epoch_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
 
-                epoch_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
-
-                epoch_abnormal_max += pred_a_max.item()
-                epoch_abnormal_mean += pred_a_mean.item()
-                epoch_normal_max += pred_n_max.item()
-                epoch_normal_mean += pred_n_mean.item()
+                    epoch_abnormal_max += pred_a_max.item()
+                    epoch_abnormal_mean += pred_a_mean.item()
+                    epoch_normal_max += pred_n_max.item()
+                    epoch_normal_mean += pred_n_mean.item()
 
             except StopIteration:
                 if not use_extra:
@@ -363,25 +363,25 @@ def train(
 
                 loss.backward()
                 optimizer.step()
+                with torch.no_grad():
+                    # print(f"==>> pred.shape: {pred.shape}")
+                    pred_a = pred.view(batch_size, abnormal_input.size(1))
 
-                # print(f"==>> pred.shape: {pred.shape}")
-                pred_a = pred.view(batch_size, abnormal_input.size(1))
+                    pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
 
-                pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
+                    pred_a_mean = torch.mean(pred_a)
 
-                pred_a_mean = torch.mean(pred_a)
+                    pred_correct = pred > thr
+                    gts_correct = gts > thr
 
-                pred_correct = pred > thr
-                gts_correct = gts > thr
+                    pred_correct = pred_correct == gts_correct
+                    corrects = torch.sum(pred_correct).item()
 
-                pred_correct = pred_correct == gts_correct
-                corrects = torch.sum(pred_correct).item()
+                    epoch_loss += loss.item()
+                    epoch_n_corrects += corrects / abnormal_input.size(1)
 
-                epoch_loss += loss.item()
-                epoch_n_corrects += corrects / abnormal_input.size(1)
-
-                epoch_abnormal_max += pred_a_max.item()
-                epoch_abnormal_mean += pred_a_mean.item()
+                    epoch_abnormal_max += pred_a_max.item()
+                    epoch_abnormal_mean += pred_a_mean.item()
 
         epoch_mean_loss = epoch_loss / (total_batches - len(normal_train_loader))
         epoch_n_mean_loss = epoch_n_loss / len(normal_train_loader)
