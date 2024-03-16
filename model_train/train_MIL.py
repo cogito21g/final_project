@@ -11,7 +11,8 @@ import torch.nn.functional as F
 
 from torch.utils.data import Dataset, DataLoader, random_split
 
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
+import sklearn.metrics
 from sklearn.preprocessing import MinMaxScaler
 
 from argparse import ArgumentParser
@@ -431,10 +432,20 @@ def train(
                 total_n_loss = 0
                 total_n_MIL_loss = 0
                 total_n_n_corrects = 0
+
+                total_n_fpr = 0
+                total_n_tpr = 0
+                total_n_bthr = 0
                 total_n_auc = 0
+
                 total_loss = 0
                 total_n_corrects = 0
+
+                total_fpr = 0
+                total_tpr = 0
+                total_bthr = 0
                 total_auc = 0
+
                 error_n_count = 0
                 error_count = 0
 
@@ -517,8 +528,25 @@ def train(
                         gt_np = np.concatenate((abnormal_gt, normal_gt), axis=0)
 
                         try:
-                            auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
+                            # auc = roc_auc_score(y_true=gt_np, y_score=pred_np)
                             # auc = roc_auc_score(y_true=gt_np, y_score=pred)
+
+                            fpr, tpr, cut = roc_curve(y_true=gt_np, y_score=pred_np)
+
+                            auc = sklearn.metrics.auc(fpr, tpr)
+
+                            diff = tpr - fpr
+                            diff_idx = np.argmax(diff)
+                            best_thr = cut[diff_idx]
+
+                            pred_positive = pred_np > thr
+                            TP_and_FN = pred_positive[gt_np > 0.9]
+                            FP_and_TN = pred_positive[gt_np < 0.1]
+
+                            total_n_fpr += np.sum(FP_and_TN) / len(FP_and_TN)
+                            total_n_tpr += np.sum(TP_and_FN) / len(TP_and_FN)
+                            total_n_bthr += best_thr if diff_idx != 0 else 1
+
                             total_n_auc += auc
                             total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
                             total_n_loss += val_loss.item()
@@ -584,8 +612,25 @@ def train(
                         abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
 
                         try:
-                            auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
+                            # auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
                             # auc = roc_auc_score(y_true=abnormal_gt2, y_score=pred)
+
+                            fpr, tpr, cut = roc_curve(y_true=abnormal_gt, y_score=pred_abnormal_np)
+
+                            auc = sklearn.metrics.auc(fpr, tpr)
+
+                            diff = tpr - fpr
+                            diff_idx = np.argmax(diff)
+                            best_thr = cut[diff_idx]
+
+                            pred_positive = pred_abnormal_np > thr
+                            TP_and_FN = pred_positive[abnormal_gt > 0.9]
+                            FP_and_TN = pred_positive[abnormal_gt < 0.1]
+
+                            total_fpr += np.sum(FP_and_TN) / len(FP_and_TN)
+                            total_tpr += np.sum(TP_and_FN) / len(TP_and_FN)
+                            total_bthr += best_thr if diff_idx != 0 else 1
+
                             total_auc += auc
                             total_n_corrects += corrects / abnormal_input.size(1)
                             # normal + abnormal 24개와 다르게 abnormal 12개만 있음 -> /12 => 2/24
@@ -603,11 +648,20 @@ def train(
 
                 val_n_mean_loss = total_n_loss / (len(normal_valid_loader) - error_n_count)
                 val_n_mean_MIL_loss = total_n_MIL_loss / (len(normal_valid_loader) - error_n_count)
+
+                val_n_fpr = total_n_fpr / ((len(normal_valid_loader) - error_n_count))
+                val_n_tpr = total_n_tpr / ((len(normal_valid_loader) - error_n_count))
+                val_n_bthr = total_n_bthr / ((len(normal_valid_loader) - error_n_count))
                 val_n_auc = total_n_auc / (len(normal_valid_loader) - error_n_count)
+
                 val_n_accuracy = total_n_n_corrects / ((len(normal_valid_loader) - error_n_count))
                 val_mean_loss = total_loss / (
                     len(abnormal_valid_loader) - len(normal_valid_loader) - error_count
                 )
+
+                val_fpr = total_fpr / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
+                val_tpr = total_tpr / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
+                val_bthr = total_bthr / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
                 val_auc = total_auc / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
                 val_accuracy = total_n_corrects / (
                     (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
@@ -670,10 +724,16 @@ def train(
             "train_n_MIL_loss": epoch_n_mean_MIL_loss,
             "train_n_accuracy": epoch_n_accuracy,
             "valid_loss": val_mean_loss,
+            "valid_fpr": val_fpr,
+            "valid_tpr": val_tpr,
+            "valid_bthr": val_bthr,
             "valid_auc": val_auc,
             "valid_accuracy": val_accuracy,
             "valid_n_loss": val_n_mean_loss,
             "valid_n_MIL_loss": val_n_mean_MIL_loss,
+            "valid_n_fpr": val_n_fpr,
+            "valid_n_tpr": val_n_tpr,
+            "valid_n_bthr": val_n_bthr,
             "valid_n_auc": val_n_auc,
             "valid_n_accuracy": val_n_accuracy,
             "learning_rate": scheduler.get_last_lr()[0],
@@ -695,10 +755,13 @@ def train(
         epoch_time = epoch_end - epoch_start
         epoch_time = str(epoch_time).split(".")[0]
         print(
-            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)} valid_auc: {val_auc:.4f} valid_accuracy: {val_accuracy:.2f}"
+            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)} valid_n_loss: {round(val_n_mean_loss,4)} valid_n_MIL_loss: {round(val_n_mean_MIL_loss,4)}"
         )
+        print(f"valid_fpr: {val_fpr} valid_n_fpr: {val_n_fpr}")
+        print(f"valid_tpr: {val_tpr} valid_n_tpr: {val_n_tpr}")
+        print(f"valid_bthr: {val_bthr} valid_n_bthr: {val_n_bthr}")
         print(
-            f"valid_n_loss: {round(val_n_mean_loss,4)} valid_n_MIL_loss: {round(val_n_mean_MIL_loss,4)}\nvalid_n_auc: {val_n_auc:.4f} valid_n_accuracy: {val_n_accuracy:.2f}"
+            f"valid_auc: {val_auc:.4f} valid_n_auc: {val_n_auc:.4f}\nvalid_accuracy: {val_accuracy:.2f} valid_n_accuracy: {val_n_accuracy:.2f}"
         )
         print(
             f"==>> val_abnormal_max_mean: {val_mean_abnormal_max} val_abnormal_mean: {val_mean_abnormal_mean}"
