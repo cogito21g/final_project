@@ -107,15 +107,36 @@ async def realtime_post(request: Request,
 
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
+
+# 메일을 보내야하는지 판단하는 함수
+async def check_and_send_email(db, video_id, user_id, last_point, smtp):
+    global last_emailed_time
+
+    frames = crud.get_frames_with_highest_score(db=db, video_id=video_id)
+    frame_timestamps = [frame.time_stamp.strftime('%H:%M:%S') for frame in frames]
+    
+    if len(frame_timestamps) < 6:
+        return False
+        
+    last = datetime.strptime(frame_timestamps[-2], '%H:%M:%S')
+    check = datetime.strptime(frame_timestamps[-6], '%H:%M:%S')
+
+    if (last - check) == timedelta(seconds=4):       # 연속적으로 5초간 지속되면
+        if not check <= last_point <= last:
+            crud.send_email(db, frame_timestamps[-6], frame_timestamps[-2], user_id, smtp)
+            last_emailed_time = last
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     await websocket.accept()
+    smtp = await crud.create_smtp_server()
 
     try:
         video_info_str = await websocket.receive_text()
         print("Received video info:", video_info_str)
         video_info = json.loads(video_info_str)
-        global detector
+        global detector, last_emailed_time
         if detector is None:
             detector = RT_AnomalyDetector(video_info, s3, settings, db, websocket)
             detector.ready()
@@ -128,6 +149,8 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 data = np.frombuffer(bytes, dtype=np.uint8)
                 frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
                 await detector.run(frame, timestamp)
+                await check_and_send_email(db=db, video_id=video_info['video_id'], user_id=video_info['user_id'], 
+                                           last_point=last_emailed_time, smtp=smtp)
                 
         else:
             cap = cv2.VideoCapture(video_info["video_url"])
@@ -140,6 +163,8 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 else:
                     timestamp = datetime.now(pytz.timezone('Asia/Seoul'))
                     await detector.run(frame, timestamp)
+                    await check_and_send_email(db=db, video_id=video_info['video_id'], user_id=video_info['user_id'],
+                                               last_point=last_emailed_time, smtp=smtp)
                     
                     ret, buffer = cv2.imencode('.jpg', frame)
                     await websocket.send_bytes(buffer.tobytes())
@@ -148,11 +173,13 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             
     except WebSocketDisconnect:
         await websocket.close()
+        await smtp.quit()
         
     except Exception as e:
         # 예외 발생 시 로그 기록 및 연결 종료
         print(f"WebSocket error: {e}")
         await websocket.close()
+        await smtp.quit()
     
     finally:
         try:
@@ -212,31 +239,8 @@ def fetch_data(db, upload_id):
     return {"frame_urls": frame_objs}
 
 @router.get("/fetch_data")
-async def fetch_frame_data(request: Request,
-                           upload_id: int = Query(...),
+async def fetch_frame_data(upload_id: int = Query(...),
                            db: Session = Depends(get_db)):
-    smtp = crud.create_smtp_server()
-    
-    token = request.cookies.get("access_token", None)
-    token = ast.literal_eval(token)
-    user_mail = token['email']
-
     frame_data = fetch_data(db, upload_id)
-
-    global last_emailed_time
-
-    # 데이터가 5개 모이기 전까지는 넘어가기
-    if len(frame_data["frame_urls"]) < 6:
-        return frame_data
-    
-    # [-1], [-5] 데이터가 5초 동안 계속해서 발생했는지 확인
-    last = datetime.strptime(frame_data['frame_urls'][-1][-1], '%H:%M:%S')
-    check = datetime.strptime(frame_data['frame_urls'][-6][-1], '%H:%M:%S')
-
-    if (last - check) == timedelta(seconds=5):      # 연속적으로 6초간 지속되면
-
-        if not check <= last_emailed_time <= last:  # 확인했던 시간 내에 메일을 보낸 적이 없다면 메일 발송
-            crud.send_email(data=frame_data["frame_urls"], to_mail=user_mail, smtp=smtp)             # 이메일 발송
-            last_emailed_time = last                # 메일을 보내고 마지막 데이터 시간으로 보낸 시간 저장
 
     return frame_data
