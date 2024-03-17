@@ -215,29 +215,3 @@ async def fetch_frame_data(upload_id: int = Query(...),
     frame_data = fetch_data(db, upload_id)
     return frame_data
 
-
-@router.get("/stream")
-async def get_stream(request: Request,
-    user_id: int = Query(...),
-    upload_id: int = Query(...),
-    db: Session = Depends(get_db)
-    ):
-    
-    user = get_current_user(request)
-        
-    video = crud.get_video(db=db, upload_id=upload_id)
-    uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
-    
-    video_info = {
-        "user_id": user_id,
-        "upload_id": upload_id,
-        "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
-        "upload_name": uploaded.name,
-        "thr": uploaded.thr,
-        "video_id": video.video_id,
-        "video_url": video.video_url
-    }
-    
-    # video_info = json.dumps(video_info)
-    
-    return templates.TemplateResponse("stream.html", {'request': request, 'token': user, 'video_info': video_info})
