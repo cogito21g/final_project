@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY : str
     AWS_SECRET_KEY : str
     BUCKET : str = "cv06-bucket"
+
+    SMTP_ADDRESS : str
+    SMTP_PORT : int
+    MAIL_ACCOUNT : str
+    MAIL_PASSWORD : str
     
     class Config:
         env_file = ".env"

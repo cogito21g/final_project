@@ -55,6 +55,7 @@ s3 = boto3.client("s3",
                   aws_secret_access_key=settings.AWS_SECRET_KEY)
 
 detector = None
+last_emailed_time = datetime.strptime("0:00:00", '%H:%M:%S')
 
 @router.get("")
 async def real_time_get(request: Request):
@@ -106,15 +107,36 @@ async def realtime_post(request: Request,
 
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
+
+# 메일을 보내야하는지 판단하는 함수
+async def check_and_send_email(db, video_id, user_id, last_point, smtp):
+    global last_emailed_time
+
+    frames = crud.get_frames_with_highest_score(db=db, video_id=video_id)
+    frame_timestamps = [frame.time_stamp.strftime('%H:%M:%S') for frame in frames]
+    
+    if len(frame_timestamps) < 6:
+        return False
+        
+    last = datetime.strptime(frame_timestamps[-2], '%H:%M:%S')
+    check = datetime.strptime(frame_timestamps[-6], '%H:%M:%S')
+
+    if (last - check) == timedelta(seconds=4):       # 연속적으로 5초간 지속되면
+        if not check <= last_point <= last:
+            crud.send_email(db, frame_timestamps[-6], frame_timestamps[-2], user_id, smtp)
+            last_emailed_time = last
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     await websocket.accept()
+    smtp = await crud.create_smtp_server()
 
     try:
         video_info_str = await websocket.receive_text()
         print("Received video info:", video_info_str)
         video_info = json.loads(video_info_str)
-        global detector
+        global detector, last_emailed_time
         if detector is None:
             detector = RT_AnomalyDetector(video_info, s3, settings, db, websocket)
             detector.ready()
@@ -127,6 +149,8 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 data = np.frombuffer(bytes, dtype=np.uint8)
                 frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
                 await detector.run(frame, timestamp)
+                await check_and_send_email(db=db, video_id=video_info['video_id'], user_id=video_info['user_id'], 
+                                           last_point=last_emailed_time, smtp=smtp)
                 
         else:
             cap = cv2.VideoCapture(video_info["video_url"])
@@ -139,6 +163,8 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 else:
                     timestamp = datetime.now(pytz.timezone('Asia/Seoul'))
                     await detector.run(frame, timestamp)
+                    await check_and_send_email(db=db, video_id=video_info['video_id'], user_id=video_info['user_id'],
+                                               last_point=last_emailed_time, smtp=smtp)
                     
                     ret, buffer = cv2.imencode('.jpg', frame)
                     await websocket.send_bytes(buffer.tobytes())
@@ -147,11 +173,13 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             
     except WebSocketDisconnect:
         await websocket.close()
+        await smtp.quit()
         
     except Exception as e:
         # 예외 발생 시 로그 기록 및 연결 종료
         print(f"WebSocket error: {e}")
         await websocket.close()
+        await smtp.quit()
     
     finally:
         try:
@@ -211,7 +239,6 @@ def fetch_data(db, upload_id):
 @router.get("/fetch_data")
 async def fetch_frame_data(upload_id: int = Query(...),
                            db: Session = Depends(get_db)):
-    
     frame_data = fetch_data(db, upload_id)
     return frame_data
 
