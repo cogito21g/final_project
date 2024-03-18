@@ -34,6 +34,7 @@ model_train/nohup.out
 model_train/*.ipynb
 model_train/wandb
 app/testitems/
+pths/
 
 ### macOS ###
 # General
