@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from utils.config import get_settings
 
+
 settings = get_settings()
 
 SQLALCHEMY_DATABASE_URL = "mysql+pymysql://{}:{}@{}:{}/{}".format(
