@@ -1,99 +1,90 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container-fluid">
-            <a class="navbar-brand mb-0 h1" href="/">IVT</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">이상탐지</a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                            <li>
-                                <a class="dropdown-item" href="/upload">녹화 영상</a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="/real_time">실시간</a>
-                            </li>
-                        </ul>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/album">Album</a>
-                    </li>
-                </ul>
-                
-                <ul class="navbar-nav me-auto me-2 me-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link" aria-current="page" href="#">{{ token.email }}</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" aria-current="page" href="/user/logout">Logout</a>
-                    </li>
-                </ul>
+{% extends 'base.html' %}
+
+{% block title %}
+<title>Upload</title>
+{% endblock %}
+
+{% block header %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand mb-0 h1" href="/">IVT</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">이상탐지</a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li>
+                            <a class="dropdown-item" href="/upload">녹화 영상</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="/real_time">실시간</a>
+                        </li>
+                    </ul>
+                <li class="nav-item">
+                    <a class="nav-link" href="/album">Album</a>
+                </li>
+            </ul>
+            
+            <ul class="navbar-nav me-auto me-2 me-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link" aria-current="page" href="#">{{ token.email }}</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" aria-current="page" href="/user/logout">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block main %}
+<div class="container mt-5">
+    <h2>이상행동을 탐지할 동영상을 업로드 해주세요.</h2>
+    <form id="myForm" class="mt-5" action="/upload" method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="storeName" class="form-label fs-4">가게 이름</label>
+            <input type="text" class="form-control" id="storeName" name="name" placeholder="가게 이름을 입력하세요." required>
+        </div>
+        <div class="mb-3">
+            <label for="datetimeInput" class="form-label fs-4">동영상 날짜 및 시간</label>
+            <input type="datetime-local" class="form-control" id="datetimeInput" name="datetime" required>
+        </div>
+        <div>
+            <label for="customRange2" class="form-label fs-4">판단 정도</label>
+            <p class="text-black-50">이상행동 판단 정도입니다. 느슨할수록 정확한 이상행동이 아니더라도 잡아냅니다. 엄격할수록 정확한 이상행동일 때만 잡아냅니다.</p>
+            <input id="customRange2" type="range" class="form-range" min="0" max="0.1" step="0.01" list="tickmarks" name="thr">
+            <div class="d-flex justify-content-between">
+                <p class="text-black-50">느슨하게</p>
+                <p class="text-black-50">보통</p>
+                <p class="text-black-50">엄격하게</p>
             </div>
         </div>
-    </nav>
-
-        <div class="container mt-5">
-        <h2>이상행동을 탐지할 동영상을 업로드 해주세요.</h2>
-        <form id="myForm" class="mt-5" action="/upload" method="post" enctype="multipart/form-data">
-            <div class="mb-3">
-                <label for="storeName" class="form-label fs-4">가게 이름</label>
-                <input type="text" class="form-control" id="storeName" name="name" placeholder="가게 이름을 입력하세요." required>
-            </div>
-            <div class="mb-3">
-                <label for="datetimeInput" class="form-label fs-4">동영상 날짜 및 시간</label>
-                <input type="datetime-local" class="form-control" id="datetimeInput" name="datetime" required>
-            </div>
-            <div>
-                <label for="customRange2" class="form-label fs-4">판단 정도</label>
-                <p class="text-black-50">이상행동 판단 정도입니다. 느슨할수록 정확한 이상행동이 아니더라도 잡아냅니다. 엄격할수록 정확한 이상행동일 때만 잡아냅니다.</p>
-                <input id="customRange2" type="range" class="form-range" min="0" max="0.1" step="0.01" list="tickmarks" name="thr">
-                <div class="d-flex justify-content-between">
-                    <p class="text-black-50">느슨하게</p>
-                    <p class="text-black-50">보통</p>
-                    <p class="text-black-50">엄격하게</p>
-                </div>
-            </div>
-            <div class="mb-3">
-                <label for="file" class="form-label fs-4">파일 선택</label>
-                <input multiple="multiple" type="file" class="form-control" id="file" name="upload_file">
-                {% if err.file_ext %}
-                <p style="color: red;">{{ err.file_ext }}</p>
-                {% endif %}
-            </div>
-            <button type="submit" class="btn btn-primary mt-3" id="liveToastBtn">탐지 시작</button>
-            <div class="position-fixed bottom-0 end-0 p-3">
-                <div id="liveToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
-                  <div class="toast-header">
+        <div class="mb-3">
+            <label for="file" class="form-label fs-4">파일 선택</label>
+            <input multiple="multiple" type="file" class="form-control" id="file" name="upload_file">
+            {% if err.file_ext %}
+            <p style="color: red;">{{ err.file_ext }}</p>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary mt-3" id="liveToastBtn">탐지 시작</button>
+        <div class="position-fixed bottom-0 end-0 p-3">
+            <div id="liveToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
                     <img src="..." class="rounded me-2" alt="...">
                     <strong class="me-auto">IVT</strong>
                     <small>message</small>
                     <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-                  </div>
-                  <div class="toast-body">
-                    파일이 제출되었습니다. 잠시후 페이지가 이동합니다.
-                  </div>
                 </div>
-              </div>
-        </form>
-        
-        <!-- <script>
-            function redirectToRealTime() {
-                window.location.href = "/real_time";
-            }
-        </script> -->
-    </div>
+                <div class="toast-body">
+                파일이 제출되었습니다. 잠시후 페이지가 이동합니다.
+                </div>
+            </div>
+        </div>
+    </form>
     
-    <!-- Bootstrap Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-</body>
-</html>
+</div>
+{% endblock %}    

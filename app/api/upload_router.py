@@ -24,7 +24,7 @@ import boto3
 from botocore.config import Config
 
 settings = get_settings()
-print(settings)
+
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
