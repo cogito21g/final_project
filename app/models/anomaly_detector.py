@@ -59,10 +59,12 @@ class LSTMAutoencoder(nn.Module):
 
 class AnomalyDetector:
     def __init__(self, video_file, info, s3_client, settings, db):
-        self.video = s3_client.generate_presigned_url('get_object',
+        self.video = s3_client.generate_presigned_url(
+                                    ClientMethod='get_object',
                                     Params={'Bucket': settings.BUCKET,
                                             'Key': video_file},
                                     ExpiresIn=3600)
+        #print(self.video)
         self.info = info
         self.s3 = s3_client
         self.settings = settings
@@ -204,9 +206,13 @@ class AnomalyDetector:
         # Define the standard frame size
         standard_width = 640
         standard_height = 480
-
+        
         # Open the video file
         cap = cv2.VideoCapture(self.video)
+        if not cap.isOpened():
+            temp_name = f'{uuid.uuid4()}.mp4'
+            self.s3.download_file(self.settings.BUCKET, self.video_url, temp_name)
+            cap = cv2.VideoCapture(temp_name)     
         fps = cap.get(cv2.CAP_PROP_FPS)
 
         # Store the track history
@@ -382,7 +388,8 @@ class AnomalyDetector:
         # upload video to s3
         self.upload_video_s3(self.s3, output_video_path)
         
-        os.remove(output_video_path)
-        
         # upload score graph to s3
         self.upload_score_graph_s3(self.s3, scores)
+        
+        os.remove(temp_name)
+        os.remove(output_video_path)

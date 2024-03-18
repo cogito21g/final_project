@@ -24,6 +24,7 @@ import boto3
 from botocore.config import Config
 
 settings = get_settings()
+print(settings)
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
@@ -33,6 +34,7 @@ router = APIRouter(
 boto_config = Config(
     signature_version = 'v4',
 )
+
 s3 = boto3.client("s3",
                   config=boto_config,
                   region_name='ap-northeast-2',
@@ -75,7 +77,8 @@ async def upload_post(request: Request,
 
     video_name = uuid.uuid1()
     
-    video_url = f"video/{user.user_id}/{uploaded.upload_id}/{video_name}{file_ext}"
+    # model inference 에서 s3 에 올릴 주소 그대로 db 에 insert
+    video_url = f"video/{user.user_id}/{uploaded.upload_id}/{video_name}{video_ext}"
     _video_create = schemas.VideoCreate(video_url=video_url, upload_id=uploaded.upload_id)
     crud.create_video(db=db, video=_video_create)
     _complete_create = schemas.Complete(completed=False, upload_id=uploaded.upload_id)

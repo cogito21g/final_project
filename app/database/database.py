@@ -18,14 +18,6 @@ SQLALCHEMY_DATABASE_URL = "mysql+pymysql://{}:{}@{}:{}/{}".format(
     settings.MYSQL_DATABASE
 )
 
-SQLALCHEMY_DATABASE_URL_ASYNC = "mysql+aiomysql://{}:{}@{}:{}/{}".format(
-    settings.MYSQL_SERVER_USER,
-    settings.MYSQL_SERVER_PASSWORD,
-    settings.MYSQL_SERVER_IP,
-    settings.MYSQL_SERVER_PORT,
-    settings.MYSQL_DATABASE
-)
-
 db_engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
 
