@@ -7,8 +7,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 
-from utils.config import get_settings
-from database.database import get_db, db_engine
+from utils.config import settings, get_db, db_engine
 
 from database import crud, models
 from database.crud import pwd_context
@@ -17,9 +16,6 @@ from api.user_router import get_current_user
 import boto3
 from botocore.config import Config
 
-
-
-settings = get_settings()
 
 templates = Jinja2Templates(directory="templates")
 

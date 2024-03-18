@@ -1,6 +1,4 @@
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -9,17 +7,13 @@ from datetime import timedelta, datetime
 
 from api import user_router, upload_router, real_time_router, album_router
 
-from database.database import get_db, db_engine
-from database import models
-from database.crud import pwd_context
-from utils.config import get_settings
+from utils.config import settings
 from jose import jwt
 
 
 templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="templates/static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,9 +22,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-settings = get_settings()
-
 
 @app.get("/")
 async def main_get(request:Request):

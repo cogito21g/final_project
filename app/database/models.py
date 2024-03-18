@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Time, JSON
 from sqlalchemy.orm import relationship, declarative_base, Session
-from database.database import Base
+from utils.config import Base
 
 
 class User(Base):

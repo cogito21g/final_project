@@ -11,8 +11,7 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 
-from utils.config import get_settings
-from database.database import get_db, db_engine
+from utils.config import settings, get_db, db_engine
 from database import models
 from models.anomaly_detector import AnomalyDetector
 from database import crud
@@ -22,9 +21,6 @@ from database import schemas
 from api.user_router import get_current_user
 import boto3
 from botocore.config import Config
-
-settings = get_settings()
-
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
@@ -48,7 +44,7 @@ async def upload_get(request: Request):
     if not user:
         return RedirectResponse(url='/user/login')
 
-    return templates.TemplateResponse("upload.html", {'request': request, 'token': user, "err": err_msg})
+    return templates.TemplateResponse("upload.html", {'request': request, 'token': user.email, "err": err_msg})
 
 @router.post("")
 async def upload_post(request: Request,
@@ -78,7 +74,7 @@ async def upload_post(request: Request,
     video_name = uuid.uuid1()
     
     # model inference 에서 s3 에 올릴 주소 그대로 db 에 insert
-    video_url = f"video/{user.user_id}/{uploaded.upload_id}/{video_name}{video_ext}"
+    video_url = f"video/{user.user_id}/{uploaded.upload_id}/{video_name}{file_ext}"
     _video_create = schemas.VideoCreate(video_url=video_url, upload_id=uploaded.upload_id)
     crud.create_video(db=db, video=_video_create)
     _complete_create = schemas.Complete(completed=False, upload_id=uploaded.upload_id)

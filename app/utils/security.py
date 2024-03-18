@@ -4,10 +4,9 @@ from typing import Any, Union
 from jose import jwt
 from passlib.context import CryptContext
 
-from utils.config import get_settings
+from utils.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-settings = get_settings()
 
 def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
     if expires_delta:

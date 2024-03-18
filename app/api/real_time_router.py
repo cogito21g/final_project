@@ -18,8 +18,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 
-from utils.config import get_settings
-from database.database import get_db, db_engine
+from utils.config import settings, get_db, db_engine
 from database import crud
 from database.crud import pwd_context
 from database import schemas
@@ -37,8 +36,6 @@ from api.user_router import get_current_user
 
 import boto3
 from botocore.config import Config
-
-settings = get_settings()
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
@@ -63,7 +60,7 @@ async def real_time_get(request: Request):
     if not user:
         return RedirectResponse(url='/user/login')
     
-    return templates.TemplateResponse("real_time.html", {'request': request, "token": user})
+    return templates.TemplateResponse("real_time.html", {'request': request, "token": user.email})
 
 
 @router.post("")
@@ -214,7 +211,7 @@ async def get_stream(request: Request,
     
     # video_info = json.dumps(video_info)
     
-    return templates.TemplateResponse("stream.html", {'request': request, 'token': user, 'video_info': video_info})
+    return templates.TemplateResponse("stream.html", {'request': request, 'token': user.email, 'video_info': video_info})
 
 
 # db 에서 실시간에서 저장되는 frame url 불러오는 코드    
