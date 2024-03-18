@@ -1,6 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Time
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Time, JSON
 from sqlalchemy.orm import relationship, declarative_base, Session
-from db.database import Base
+from utils.config import Base
 
 
 class User(Base):
@@ -20,10 +20,12 @@ class Upload(Base):
     name = Column(String(50), nullable=False)
     date = Column(DateTime, nullable=False)
     is_realtime = Column(Boolean, default=False)
+    thr = Column(Float, nullable=False)
     user_id = Column(Integer, ForeignKey("user.user_id"), nullable=False)
     
     user = relationship("User", back_populates="uploads")
     videos = relationship("Video", back_populates="upload", cascade="all, delete-orphan")
+    completes = relationship("Complete", cascade="all, delete-orphan")
 
 class Video(Base):
     __tablename__ = "video"
@@ -33,7 +35,7 @@ class Video(Base):
     upload_id = Column(Integer, ForeignKey("upload.upload_id"), nullable=False)
     
     upload = relationship("Upload", back_populates="videos")
-    frames = relationship("Frame", back_populates="video")
+    frames = relationship("Frame", back_populates="video", cascade="all, delete-orphan")
 
 class Frame(Base):
     __tablename__ = "frame"
@@ -41,7 +43,15 @@ class Frame(Base):
     frame_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     frame_url = Column(String(255), nullable=False)
     time_stamp = Column(Time, nullable=False)
+    box_kp_json = Column(JSON, nullable=False)
     score = Column(Float, nullable=False)
     video_id = Column(Integer, ForeignKey("video.video_id"), nullable=False)
     
     video = relationship("Video", back_populates="frames")
+
+class Complete(Base):
+    __tablename__ = "complete"
+    
+    complete_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    completed = Column(Boolean, default=False)
+    upload_id = Column(Integer, ForeignKey("upload.upload_id"), nullable=False)
