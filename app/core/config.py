@@ -1,6 +1,8 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
@@ -17,7 +19,7 @@ class Settings(BaseSettings):
     
     AWS_ACCESS_KEY : str
     AWS_SECRET_KEY : str
-    BUCKET : str = "cv06-bucket"
+    BUCKET : str = "cv06-bucket2"
 
     SMTP_ADDRESS : str
     SMTP_PORT : int
