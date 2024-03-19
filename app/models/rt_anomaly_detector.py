@@ -239,7 +239,8 @@ class RT_AnomalyDetector:
             return np.mean(np.power(seq1 - seq2, 2))
 
         # anomaly threshold (default 0.02)
-        threshold = self.info["thr"]
+        # threshold = self.info["thr"]
+        threshold = 0.3
 
         self.frame_count += 1  # Increment frame count
 
@@ -328,7 +329,7 @@ class RT_AnomalyDetector:
 
                                     xywhk = np.array([float(x), float(y), float(w), float(h)] + keypoints)
 
-                                    xywhk = map(lambda x: str(round(x, 4)), xywhk)
+                                    xywhk = list(map(lambda x: str(round(x, 4)), xywhk))
 
                                     temp_for_db_i["bbox"][f"id {i}"] = " ".join(xywhk[:4])
 

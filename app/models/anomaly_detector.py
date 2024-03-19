@@ -235,6 +235,7 @@ class AnomalyDetector:
 
         # Open the video file
         cap = cv2.VideoCapture(self.video)
+        temp_name = None
         if not cap.isOpened():
             temp_name = f"{uuid.uuid4()}.mp4"
             self.s3.download_file(self.settings.BUCKET, self.video_url, temp_name)
@@ -261,7 +262,8 @@ class AnomalyDetector:
             return np.mean(np.power(seq1 - seq2, 2))
 
         # anomaly threshold (default 0.02)
-        threshold = self.thr
+        # threshold = self.thr
+        threshold = 0.3
 
         # Loop through the video frames
         frame_count = 0
@@ -369,7 +371,7 @@ class AnomalyDetector:
                                                 [float(x), float(y), float(w), float(h)] + keypoints
                                             )
 
-                                            xywhk = map(lambda x: str(round(x, 4)), xywhk)
+                                            xywhk = list(map(lambda x: str(round(x, 4)), xywhk))
 
                                             temp_for_db_i["bbox"][f"id {i}"] = " ".join(xywhk[:4])
 
@@ -448,6 +450,6 @@ class AnomalyDetector:
 
         # upload score graph to s3
         self.upload_score_graph_s3(self.s3, scores)
-
-        os.remove(temp_name)
+        if temp_name:
+            os.remove(temp_name)
         os.remove(output_video_path)
