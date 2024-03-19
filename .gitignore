@@ -35,6 +35,8 @@ model_train/*.ipynb
 model_train/wandb
 app/testitems/
 pths/
+app/models/pts
+app/models/yolov8n-pose.pt
 
 ### macOS ###
 # General
