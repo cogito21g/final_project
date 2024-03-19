@@ -391,5 +391,8 @@ class AnomalyDetector:
         # upload score graph to s3
         self.upload_score_graph_s3(self.s3, scores)
         
-        os.remove(temp_name)
+        try:
+            os.remove(temp_name)
+        except:
+            pass
         os.remove(output_video_path)
