@@ -18,9 +18,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 
-from utils.config import settings, get_db, db_engine
-from database import crud
-from database.crud import pwd_context
+from utils.config import settings, get_db
 from database import schemas
 
 from fastapi import Depends, BackgroundTasks

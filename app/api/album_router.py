@@ -1,20 +1,16 @@
 from typing import Optional
-
 from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Depends
 from sqlalchemy.orm import Session
 
-
-from utils.config import settings, get_db, db_engine
-
+from utils.config import settings, get_db
 from database import crud, models
-from database.crud import pwd_context
 
-from api.user_router import get_current_user
 import boto3
 from botocore.config import Config
+
+from api.user_router import get_current_user
 
 
 templates = Jinja2Templates(directory="templates")

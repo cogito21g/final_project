@@ -1,5 +1,4 @@
-from datetime import timedelta, datetime, date
-from typing import Optional
+from datetime import datetime
 import os
 import uuid
 
@@ -7,20 +6,18 @@ from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFil
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi import Depends, BackgroundTasks
-from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 
-from utils.config import settings, get_db, db_engine
-from database import models
+from utils.config import settings, get_db
 from models.anomaly_detector import AnomalyDetector
 from database import crud
-from database.crud import pwd_context
 from database import schemas
 
-from api.user_router import get_current_user
 import boto3
 from botocore.config import Config
+
+from api.user_router import get_current_user
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
@@ -93,8 +90,8 @@ async def upload_post(request: Request,
         "video_id": crud.get_video(db=db, upload_id=uploaded.upload_id).video_id
     }
 
-    background_tasks.add_task(run_model,
-                              video_url, upload_file, info, s3, settings, db)  
+    # background_tasks.add_task(run_model,
+    #                           video_url, upload_file, info, s3, settings, db)  
     
     
     redirect_url = f"/album/details?user_id={info['user_id']}&upload_id={info['upload_id']}"

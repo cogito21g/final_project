@@ -5,68 +5,7 @@
 {% endblock %}
 
 {% block style %}
-<script src="https://cdn.canvasjs.com/canvasjs.min.js"></script>
-<style>
-
-    .container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-    }
-
-    .col-12 {
-        width: 100%;
-    }
-
-
-    body.loading #overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.608); /* Darker semi-transparent black background */
-        z-index: 9999; /* Ensure the overlay appears above other content */
-        pointer-events: none;
-    }
-
-    body.loading #popup {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: #ebe9e9; /* Light gray background color */
-        padding: 20px;
-        border-radius: 5px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-        z-index: 10000; /* Ensure the popup appears above the overlay */
-    }
-
-    /* Styles for the loading spinner */
-    body.loading #popup .spinner {
-        margin: calc(50% - 25px) auto;
-        width: 40px;
-        height: 40px;
-        border: 3px solid rgba(140, 167, 234, 0.273);
-        box-sizing: border-box;
-
-        border-top-color: rgb(84, 173, 240);
-        border-bottom-color: rgb(84, 173, 240);
-
-        border-radius: 100%;
-        animation: spin 1s ease-in-out infinite;
-    }
-
-    @keyframes spin {
-        100%
-        {
-        transform: rotate(180deg);
-        }
-    }
-
-</style>
+{{ super() }}
 {% endblock %}
 
 {% block header %}
