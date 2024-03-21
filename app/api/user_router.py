@@ -1,19 +1,16 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Depends
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 
-
 from utils.config import settings, get_db, db_engine
 from database import models
-from database import crud
-from database.crud import pwd_context
+from utils.security import pwd_context
 
 
-router = APIRouter(prefix="/user")
 templates = Jinja2Templates(directory="templates")
+router = APIRouter(prefix="/user")
 
 @router.get("/signup")
 async def signup_get(request: Request,

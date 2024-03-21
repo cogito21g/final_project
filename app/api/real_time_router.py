@@ -18,7 +18,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 
-from utils.config import settings, get_db
+from utils.config import settings, get_db, s3
 from database import schemas
 
 from fastapi import Depends, BackgroundTasks
@@ -32,22 +32,10 @@ from database import crud
 from api.user_router import get_current_user
 
 
-import boto3
-from botocore.config import Config
-
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
     prefix="/real_time",
 )
-
-boto_config = Config(
-    signature_version = 'v4',
-)
-s3 = boto3.client("s3",
-                  config=boto_config,
-                  region_name='ap-northeast-2',
-                  aws_access_key_id=settings.AWS_ACCESS_KEY,
-                  aws_secret_access_key=settings.AWS_SECRET_KEY)
 
 detector = None
 last_emailed_time = datetime.strptime("0:00:00", '%H:%M:%S')

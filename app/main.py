@@ -12,12 +12,11 @@ from jose import jwt
 
 
 templates = Jinja2Templates(directory="templates")
-
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://10.28.224.98:30081"], 
+    allow_origins=["http://10.28.224.98:30082"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,7 +27,7 @@ async def main_get(request:Request):
 	user = user_router.get_current_user(request)
 	if user:
 		return templates.TemplateResponse("main.html", {'request': request, 'token': user.email})
-	else:
+	else:	
 		return templates.TemplateResponse("main.html", {'request': request, 'token': None})
 
 @app.post("/")
@@ -43,7 +42,6 @@ async def main_post(request: Request):
 	
 	template_response = templates.TemplateResponse('main.html', {'request': request, 'token': email})
  
-    # 쿠키 저장
 	template_response.set_cookie(key="access_token", value=token, expires=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES), httponly=True)
     
 	return template_response
@@ -54,4 +52,4 @@ app.include_router(album_router.router)
 app.include_router(real_time_router.router)
 
 if __name__ == '__main__':
-	uvicorn.run("main:app", host='0.0.0.0', port=30081, reload=True)
+	uvicorn.run("main:app", host='127.0.0.1', port=30082, reload=True)

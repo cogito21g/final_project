@@ -1,8 +1,7 @@
 import smtplib
-from datetime import timedelta, datetime, date
+from datetime import datetime
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func
-from passlib.context import CryptContext
 
 from database import models
 from database.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
@@ -14,17 +13,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 
-from utils.config import get_settings
-
-
-
-
-
-settings = get_settings()
+from utils.config import settings
 
 ## User
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def create_user(db: Session, user: UserCreate):
     hashed_password = get_password_hash(user.password1)
     db_user = models.User(email=user.email, password=hashed_password)

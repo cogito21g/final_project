@@ -4,11 +4,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from utils.config import settings, get_db
+from utils.config import settings, get_db, s3
 from database import crud, models
-
-import boto3
-from botocore.config import Config
 
 from api.user_router import get_current_user
 
@@ -18,16 +15,6 @@ templates = Jinja2Templates(directory="templates")
 router = APIRouter(
     prefix="/album",
 )
-
-boto_config = Config(
-    signature_version = 'v4',
-)
-s3 = boto3.client("s3",
-                  config=boto_config,
-                  region_name='ap-northeast-2',
-                  aws_access_key_id=settings.AWS_ACCESS_KEY,
-                  aws_secret_access_key=settings.AWS_SECRET_KEY)
-
 
 @router.get("")
 async def upload_get(request: Request,

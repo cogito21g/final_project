@@ -1,16 +1,12 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-from dotenv import load_dotenv
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.exc import SQLAlchemyError
-
-
-load_dotenv()
+import boto3
+from botocore.config import Config
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
@@ -36,7 +32,6 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
-        
         
 @lru_cache()
 def get_settings():
@@ -64,3 +59,13 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+boto_config = Config(
+    signature_version = 'v4',
+)
+s3 = boto3.client("s3",
+                  config=boto_config,
+                  region_name='ap-northeast-2',
+                  aws_access_key_id=settings.AWS_ACCESS_KEY,
+                  aws_secret_access_key=settings.AWS_SECRET_KEY)
