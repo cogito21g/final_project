@@ -297,6 +297,7 @@ class AnomalyDetector:
                                 buffer_scaled = scaler.fit_transform(buffer_array)
                                 
                                 # Create sequences for prediction
+                                # x_pred: [1,20,38]
                                 x_pred = buffer_scaled[-sequence_length:].reshape(1, sequence_length, n_features)
                                 
                                 # Predict the next values using the autoencoder model
