@@ -1,18 +1,16 @@
-import smtplib
-from datetime import datetime
+from datetime import timedelta, datetime, date
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func
-
-from database import models
-from database.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
-
-from utils.security import get_password_hash, verify_password
-from database.models import User
-
+import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.image import MIMEImage
+# from email.mime.image import MIMEImage
+# from passlib.context import CryptContext
 
+from database.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
+
+from database import models
+from utils.security import get_password_hash, verify_password
 from utils.config import settings
 
 ## User

@@ -2,16 +2,20 @@ from datetime import datetime
 import os
 import uuid
 
-from fastapi import APIRouter, Request, HTTPException, Form, UploadFile, File, Depends, BackgroundTasks
+from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-
+from fastapi import Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from starlette import status
 
-from utils.config import settings, get_db, s3
+from utils.config import settings
 from models.anomaly_detector import AnomalyDetector
-from database import crud, schemas
+from database import crud
+from database import schemas
+
+import boto3
+from botocore.config import Config
 
 from api.user_router import get_current_user
 
@@ -20,6 +24,15 @@ router = APIRouter(
     prefix="/upload",
 )
 
+boto_config = Config(
+    signature_version = 'v4',
+)
+
+s3 = boto3.client("s3",
+                  config=boto_config,
+                  region_name='ap-northeast-2',
+                  aws_access_key_id=settings.AWS_ACCESS_KEY,
+                  aws_secret_access_key=settings.AWS_SECRET_KEY)
 
 @router.get("")
 async def upload_get(request: Request):
@@ -39,6 +52,7 @@ async def upload_post(request: Request,
                     thr: float = Form(...),
                     db: Session = Depends(get_db)):
     
+
     user = get_current_user(request)
     err_msg = {"file_ext": None}
     if not user:
@@ -82,7 +96,7 @@ async def upload_post(request: Request,
     
     redirect_url = f"/album/details?user_id={info['user_id']}&upload_id={info['upload_id']}"
 
-    return RedirectResponse(url=redirect_url)
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
 # background 에서 모델 실행
 def run_model(video_url, upload_file, info, s3, settings, db):

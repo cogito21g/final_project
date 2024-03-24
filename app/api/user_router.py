@@ -2,10 +2,9 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from jose import jwt, JWTError
 
-from utils.config import settings, get_db, db_engine
 from database import models
+from database.database import get_db
 from utils.security import pwd_context
 
 
@@ -84,22 +83,3 @@ async def logout_get(request: Request):
 	if access_token:
 		template.delete_cookie(key="access_token")
 	return template
-
-def get_current_user(request:Request):
-	token = request.cookies.get("access_token", None)
-
-	try:
-		if token:
-			payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-			email = payload.get("sub", None)
-			session = Session(db_engine)
-			user = session.query(models.User).filter(models.User.email == email).first()
-			session.close()
-			if user:
-				return user
-			else:
-				return None
-		else:
-			return None
-	except:
-		return JWTError()
