@@ -1,33 +1,21 @@
 from typing import Optional
+
 from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from utils.config import settings, get_db
+from utils.config import settings
 from database import crud, models
-
-import boto3
-from botocore.config import Config
-
-from api.user_router import get_current_user
-
+from database.database import get_db
+from utils.security import get_current_user
+from utils.utils import s3
 
 templates = Jinja2Templates(directory="templates")
 
 router = APIRouter(
     prefix="/album",
 )
-
-boto_config = Config(
-    signature_version = 'v4',
-)
-s3 = boto3.client("s3",
-                  config=boto_config,
-                  region_name='ap-northeast-2',
-                  aws_access_key_id=settings.AWS_ACCESS_KEY,
-                  aws_secret_access_key=settings.AWS_SECRET_KEY)
-
 
 @router.get("")
 async def upload_get(request: Request,
@@ -72,11 +60,9 @@ async def modify_name(request: Request,
 
 @router.get("/details")
 async def upload_get_one(request: Request,
-    user_id: int = Query(...),
-    upload_id: int = Query(...),
-    db: Session = Depends(get_db)
-    ):
-
+                         user_id: int = Query(...),
+                         upload_id: int = Query(...),
+                         db: Session = Depends(get_db)):
 
     user = get_current_user(request)
 
@@ -143,8 +129,7 @@ async def upload_get_one(request: Request,
 @router.get("/details/images")
 async def image_get(request: Request,
                     frame_id: int = Query(...),
-                    db: Session = Depends(get_db)
-                    ):
+                    db: Session = Depends(get_db)):
     
     user = get_current_user(request)
     frame = crud.get_frame(db=db, frame_id=frame_id)

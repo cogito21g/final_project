@@ -1,53 +1,29 @@
 from datetime import timedelta, datetime, date
 import pytz
-from typing import Optional, List, Tuple
-import ast
-import os
-import uuid
-import base64
 import asyncio
 import cv2
 import numpy as np
 import json
 
-from fastapi import APIRouter, Response, Request,\
-    HTTPException, Form, UploadFile, File, Cookie, Query, WebSocket, WebSocketDisconnect
-import websockets
-from websockets.exceptions import ConnectionClosed
+from fastapi import APIRouter, Request, Form, Query, Depends, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-
-
-from utils.config import settings, get_db
-from database import schemas
-
-from fastapi import Depends, BackgroundTasks
-from jose import jwt, JWTError
 from sqlalchemy.orm import Session
-from starlette import status
+import websockets
+from websockets.exceptions import ConnectionClosed
 
-from database import models
+
+from database import schemas, crud
+from database.database import get_db
+from utils.config import settings
+from utils.security import get_current_user
+from utils.utils import s3
 from models.rt_anomaly_detector import RT_AnomalyDetector
-from database import crud
-from api.user_router import get_current_user
-
-
-import boto3
-from botocore.config import Config
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
     prefix="/real_time",
 )
-
-boto_config = Config(
-    signature_version = 'v4',
-)
-s3 = boto3.client("s3",
-                  config=boto_config,
-                  region_name='ap-northeast-2',
-                  aws_access_key_id=settings.AWS_ACCESS_KEY,
-                  aws_secret_access_key=settings.AWS_SECRET_KEY)
 
 detector = None
 last_emailed_time = datetime.strptime("0:00:00", '%H:%M:%S')
