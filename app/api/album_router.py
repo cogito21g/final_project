@@ -5,9 +5,9 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from utils.config import settings
 from database import crud, models
 from database.database import get_db
+from utils.config import settings
 from utils.security import get_current_user
 from utils.utils import s3
 
