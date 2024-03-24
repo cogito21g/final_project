@@ -1,5 +1,6 @@
 # Project Structure
 
+```bash
 .
 |-- README.md
 |-- __init__.py
@@ -40,6 +41,7 @@
     |-- config.py
     |-- security.py
     `-- utils.py
+```
 
 # Description
 
