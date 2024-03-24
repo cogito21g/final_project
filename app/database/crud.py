@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 # from email.mime.image import MIMEImage
 # from passlib.context import CryptContext
 
-from database.schemas import UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
+from database.schemas import UserBase, UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
 
 from database import models
 from utils.security import get_password_hash, verify_password
@@ -41,7 +41,7 @@ def authenticate(db: Session, *, email: str, password: str):
         return None
     return user
 
-def is_active(user: User) -> bool:
+def is_active(user: UserBase) -> bool:
     return user.is_active
 
 ## Upload

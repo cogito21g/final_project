@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from jose import jwt
 
-from api import user_router
-# upload_router, real_time_router, album_router
+from api import user_router, upload_router
+# real_time_router, album_router
 from utils.config import settings
 from utils.security import get_current_user
 
@@ -49,7 +49,7 @@ async def main_post(request: Request):
 	return template_response
 
 app.include_router(user_router.router)
-# app.include_router(upload_router.router)
+app.include_router(upload_router.router)
 # app.include_router(album_router.router)
 # app.include_router(real_time_router.router)
 

@@ -2,37 +2,23 @@ from datetime import datetime
 import os
 import uuid
 
-from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Cookie, Query
+from fastapi import APIRouter, Response, Request, Form, UploadFile, File, Depends, BackgroundTasks, status
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Depends, BackgroundTasks
 from sqlalchemy.orm import Session
-from starlette import status
 
 from utils.config import settings
-from models.anomaly_detector import AnomalyDetector
 from database import crud
 from database import schemas
-
-import boto3
-from botocore.config import Config
-
-from api.user_router import get_current_user
+from database.database import get_db
+from utils.security import get_current_user
+from utils.utils import s3, run_model
 
 templates = Jinja2Templates(directory="templates")
+
 router = APIRouter(
     prefix="/upload",
 )
-
-boto_config = Config(
-    signature_version = 'v4',
-)
-
-s3 = boto3.client("s3",
-                  config=boto_config,
-                  region_name='ap-northeast-2',
-                  aws_access_key_id=settings.AWS_ACCESS_KEY,
-                  aws_secret_access_key=settings.AWS_SECRET_KEY)
 
 @router.get("")
 async def upload_get(request: Request):
@@ -55,6 +41,7 @@ async def upload_post(request: Request,
 
     user = get_current_user(request)
     err_msg = {"file_ext": None}
+
     if not user:
         return RedirectResponse(url='/user/login')
 
@@ -97,30 +84,3 @@ async def upload_post(request: Request,
     redirect_url = f"/album/details?user_id={info['user_id']}&upload_id={info['upload_id']}"
 
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
-
-# background 에서 모델 실행
-def run_model(video_url, upload_file, info, s3, settings, db):
-    
-    s3_upload_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="video 를 s3 저장소 업로드에 실패했습니다."
-    )
-    try:
-        s3.upload_fileobj(
-            upload_file.file,
-            settings.BUCKET,
-            video_url,
-            ExtraArgs={'ContentType': 'video/mp4'}
-        )
-    except:
-        raise s3_upload_exception
-
-    model = AnomalyDetector(video_file=video_url,
-                            info=info,
-                            s3_client=s3,
-                            settings=settings,
-                            db=db)
-    model.run()
-
-    crud.update_complete_status(db=db, upload_id=info['upload_id'])
-    return 
