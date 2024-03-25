@@ -27,6 +27,7 @@ datapreprocess/*.csv
 datapreprocess/*.pt
 datapreprocess/*.pth
 datapreprocess/npy
+datapreprocess/nohup.out
 model_train/code_prac.ipynb
 model_train/model.h5
 model_train/pytorch_model.pth
@@ -35,6 +36,8 @@ model_train/*.ipynb
 model_train/wandb
 app/testitems/
 pths/
+app/models/pts
+app/models/yolov8n-pose.pt
 .netrc
 
 ### macOS ###
@@ -297,3 +300,5 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,macos,windows,jupyternotebooks,virtualenv,python
+
+dataset/

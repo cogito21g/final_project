@@ -1,29 +1,41 @@
 from datetime import timedelta, datetime, date
+import pytz
+from typing import Optional, List, Tuple
 import ast
-import uuid
 import os
+import uuid
+import base64
+import asyncio
+import cv2
+import numpy as np
+import json
 
-from fastapi import APIRouter, Response, Request, HTTPException, Form, UploadFile, File, Query
+from fastapi import APIRouter, Response, Request,\
+    HTTPException, Form, UploadFile, File, Cookie, Query, WebSocket, WebSocketDisconnect
+import websockets
+from websockets.exceptions import ConnectionClosed
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Depends
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+
+
+from utils.config import settings, get_db, db_engine
+from database import crud
+from database.crud import pwd_context
+from database import schemas
+
+from fastapi import Depends, BackgroundTasks
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from starlette import status
 
-from core.config import get_settings
-from db.database import get_db, db_engine
-from models import models
-from crud import crud
-from crud.crud import pwd_context
-from schemas import schemas
-
+from database import models
+from models.rt_anomaly_detector import RT_AnomalyDetector
+from database import crud
 from api.user_router import get_current_user
+
+
 import boto3
 from botocore.config import Config
-
-settings = get_settings()
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
@@ -39,103 +51,191 @@ s3 = boto3.client("s3",
                   aws_access_key_id=settings.AWS_ACCESS_KEY,
                   aws_secret_access_key=settings.AWS_SECRET_KEY)
 
+detector = None
+last_emailed_time = datetime.strptime("0:00:00", '%H:%M:%S')
+
 @router.get("")
 async def real_time_get(request: Request):
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
-    else:
+    user = get_current_user(request)
+    if not user:
         return RedirectResponse(url='/user/login')
     
-    return templates.TemplateResponse("real_time.html", {'request': request, "token": token})
+    return templates.TemplateResponse("real_time.html", {'request': request, "token": user.email})
+
 
 @router.post("")
-async def upload_post(request: Request,
+async def realtime_post(request: Request,
                     name: str = Form(...),
-                    upload_file: UploadFile = File(...),
-                    date: date = Form(...),
+                    real_time_video: str = Form(...),
+                    datetime: datetime = Form(...),
                     thr: float = Form(...),
                     db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token", None)
-    token = ast.literal_eval(token)
-    email = token['email']
-    
-    user = crud.get_user_by_email(db=db, email=email)
-    # name 중복 예외처리 구현?
-    # check_name = crud.get_upload_by_name(db=db, name=name)
-    # if check_name:
-    #     name = check_name.name + uuid.uuid4()
-    _upload_create = schemas.UploadCreate(name=name, date=date,
-                                          user_id=user.user_id)
+
+    user = get_current_user(request)
+    user = crud.get_user_by_email(db=db, email=user.email)
+
+    # Form 과 user_id 를 이용하여 upload row insert
+    _upload_create = schemas.UploadCreate(name=name, date=datetime, is_realtime=True, thr=thr, user_id=user.user_id)
     crud.create_upload(db=db, upload=_upload_create)
-    uploaded = crud.get_upload_id(db=db, user_id=user.user_id, name=name, date=date)[-1]
-    video_ext = os.path.splitext(upload_file.filename)[-1]
-    video_name = uuid.uuid1()
-    video_url = f"video/{user.user_id}/{uploaded.upload_id}/{video_name}{video_ext}"
     
+    # 지금 업로드된 id 획득, 클라이언트로부터 작성된 실시간 스트리밍 영상 url 획득
+    uploaded = crud.get_upload_id(db=db, user_id=user.user_id, name=name, date=datetime)[-1]
+    
+    # db 에는 실시간임을 알 수 있게만 함
+    video_url = f"{real_time_video}"
     _video_create = schemas.VideoCreate(video_url=video_url, upload_id=uploaded.upload_id)
     crud.create_video(db=db, video=_video_create)
+    _complete_create = schemas.Complete(completed=True, upload_id=uploaded.upload_id)
+    crud.create_complete(db=db, complete=_complete_create)
     
-    s3_upload_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="video 를 s3 저장소 업로드에 실패했습니다."
-    )
-    try:
-        s3.upload_fileobj(
-            upload_file.file,
-            settings.BUCKET,
-            video_url,
-            ExtraArgs={'ContentType': 'video/mp4'}
-        )
-    except:
-        raise s3_upload_exception
-    
+    # model inference 에서 사용할 정보
     info = {
         "user_id": user.user_id,
         "email": user.email,
         "upload_id": uploaded.upload_id,
-        "name": name,
-        "date": date,
-        "threshold": thr,
-        "video_name": upload_file.filename,
-        "video_url": video_url
+        "name": uploaded.name,
+        "date": uploaded.date,
+        "threshold": uploaded.thr,
+        "video_url": video_url,
+        "video_id": crud.get_video(db=db, upload_id=uploaded.upload_id).video_id
     }
     
-    print(info)
+    redirect_url = f"/real_time/stream?user_id={info['user_id']}&upload_id={info['upload_id']}"
+
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
+
+# 메일을 보내야하는지 판단하는 함수
+async def check_and_send_email(db, video_id, user_id, last_point, smtp):
+    global last_emailed_time
+
+    frames = crud.get_frames_with_highest_score(db=db, video_id=video_id)
+    frame_timestamps = [frame.time_stamp.strftime('%H:%M:%S') for frame in frames]
     
-    redirect_url = f"/upload/video?user_id={info['user_id']}&upload_id={info['upload_id']}&name={info['name']}&date={info['date']}&video_name={info['video_name']}"
+    if len(frame_timestamps) < 6:
+        return False
+        
+    last = datetime.strptime(frame_timestamps[-2], '%H:%M:%S')
+    check = datetime.strptime(frame_timestamps[-6], '%H:%M:%S')
 
-    return RedirectResponse(url=redirect_url)
+    if (last - check) == timedelta(seconds=4):       # 연속적으로 5초간 지속되면
+        if not check <= last_point <= last:
+            crud.send_email(db, frame_timestamps[-6], frame_timestamps[-2], user_id, smtp)
+            last_emailed_time = last
 
 
-@router.post("/video")
-async def video_get(request: Request,
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+    await websocket.accept()
+    smtp = await crud.create_smtp_server()
+
+    try:
+        video_info_str = await websocket.receive_text()
+        print("Received video info:", video_info_str)
+        video_info = json.loads(video_info_str)
+        global detector, last_emailed_time
+        if detector is None:
+            detector = RT_AnomalyDetector(video_info, s3, settings, db, websocket)
+            detector.ready()
+        
+        if video_info["video_url"] == "web":
+            while True:
+                timestamp = datetime.now(pytz.timezone('Asia/Seoul'))
+                # Receive bytes from the websocket
+                bytes = await websocket.receive_bytes()
+                data = np.frombuffer(bytes, dtype=np.uint8)
+                frame = cv2.imdecode(data, cv2.IMREAD_COLOR)
+                await detector.run(frame, timestamp)
+                await check_and_send_email(db=db, video_id=video_info['video_id'], user_id=video_info['user_id'], 
+                                           last_point=last_emailed_time, smtp=smtp)
+                
+        else:
+            cap = cv2.VideoCapture(video_info["video_url"])
+            
+            while True:
+                success, frame = cap.read()
+                if not success:
+                    await websocket.send_text(f'카메라 연결에 실패했습니다.')
+                    break
+                else:
+                    timestamp = datetime.now(pytz.timezone('Asia/Seoul'))
+                    await detector.run(frame, timestamp)
+                    await check_and_send_email(db=db, video_id=video_info['video_id'], user_id=video_info['user_id'],
+                                               last_point=last_emailed_time, smtp=smtp)
+                    
+                    ret, buffer = cv2.imencode('.jpg', frame)
+                    await websocket.send_bytes(buffer.tobytes())
+                    
+                await asyncio.sleep(0.042)
+            
+    except WebSocketDisconnect:
+        await websocket.close()
+        await smtp.quit()
+        
+    except Exception as e:
+        # 예외 발생 시 로그 기록 및 연결 종료
+        print(f"WebSocket error: {e}")
+        await websocket.close()
+        await smtp.quit()
+    
+    finally:
+        try:
+            detector.upload_score_graph_s3()
+        except:
+            pass
+        detector = None
+
+
+@router.get("/stream")
+async def get_stream(request: Request,
     user_id: int = Query(...),
     upload_id: int = Query(...),
-    name: str = Query(...),
-    date: str = Query(...),
-    video_name: str = Query(...),
     db: Session = Depends(get_db)
     ):
     
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
+    user = get_current_user(request)
+        
+    video = crud.get_video(db=db, upload_id=upload_id)
+    uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
     
-    video_url = crud.get_video(db=db, upload_id=upload_id).video_url
-    #obj = f"https://{settings.BUCKET}.s3.ap-northeast-2.amazonaws.com/{video_url}"
-    obj = s3.generate_presigned_url('get_object',
-                                    Params={'Bucket': settings.BUCKET,
-                                            'Key': video_url},
-                                    ExpiresIn=3600)
-    print(obj)
     video_info = {
         "user_id": user_id,
         "upload_id": upload_id,
-        "name": name,
-        "date": date,
-        "video_name": video_name,
-        "video_url": obj
+        "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
+        "upload_name": uploaded.name,
+        "thr": uploaded.thr,
+        "video_id": video.video_id,
+        "video_url": video.video_url,
+        "is_realtime": True
     }
     
-    return templates.TemplateResponse("video.html", {'request': request, 'token': token, 'video_info': video_info})
+    # video_info = json.dumps(video_info)
+    
+    return templates.TemplateResponse("stream.html", {'request': request, 'token': user.email, 'video_info': video_info})
+
+
+# db 에서 실시간에서 저장되는 frame url 불러오는 코드    
+def fetch_data(db, upload_id):
+    
+    video = crud.get_video(db=db, upload_id=upload_id)
+    frames = crud.get_frames_with_highest_score(db=db, video_id=video.video_id)
+    frame_ids = [frame.frame_id for frame in frames]
+    frame_urls = [frame.frame_url for frame in frames]
+    frame_timestamps = [frame.time_stamp for frame in frames]
+    frame_objs = []
+    
+    for frame_id, frame_url, frame_timestamp in zip(frame_ids, frame_urls, frame_timestamps):
+        frame_obj = s3.generate_presigned_url('get_object',
+                                    Params={'Bucket': settings.BUCKET,
+                                            'Key': frame_url},
+                                    ExpiresIn=3600)
+        frame_objs.append((frame_id, frame_obj, frame_timestamp.strftime('%H:%M:%S')))
+
+    return {"frame_urls": frame_objs}
+
+@router.get("/fetch_data")
+async def fetch_frame_data(upload_id: int = Query(...),
+                           db: Session = Depends(get_db)):
+    frame_data = fetch_data(db, upload_id)
+    return frame_data
+

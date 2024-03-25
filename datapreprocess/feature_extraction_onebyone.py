@@ -66,6 +66,11 @@ header = [
     "Keypoint_33",
 ]
 
+csv_root = "./UCF_csv/"
+
+if not os.path.exists(csv_root):
+    os.makedirs(csv_root)
+
 
 def feat_extraction():
     # Load the YOLOv8 model
@@ -84,10 +89,13 @@ def feat_extraction():
 
         print(f"{folder_name} feature extracting starts")
 
-        with open(f"{folder_name}.csv", "w") as c_file:
-            writer = csv.writer(c_file, delimiter=",")
+        if not os.path.exists(csv_root + folder_name):
+            os.makedirs(csv_root + folder_name)
 
-            writer.writerow(header)
+        # with open(f"{folder_name}.csv", "w") as c_file:
+        #     writer = csv.writer(c_file, delimiter=",")
+
+        #     writer.writerow(header)
 
         folder_path = root + folder_name + "/"
 
@@ -99,6 +107,11 @@ def feat_extraction():
 
         for file_name in tqdm(file_list, total=len(file_list)):
             path = folder_path + file_name
+
+            with open(csv_root + folder_name + "/" + f"{file_name}.csv", "w") as c_file:
+                writer = csv.writer(c_file, delimiter=",")
+
+                writer.writerow(header)
 
             cap = cv2.VideoCapture(path)
 
@@ -142,7 +155,7 @@ def feat_extraction():
                     # Break the loop if the end of the video is reached
                     break
 
-            with open(f"{folder_name}.csv", "a") as c_file:
+            with open(csv_root + folder_name + "/" + f"{file_name}.csv", "a") as c_file:
                 writer = csv.writer(c_file, delimiter=",")
                 for key in track_history.keys():
                     for f_count, b_and_k in track_history[key]:

@@ -25,8 +25,8 @@ from tqdm import tqdm
 import wandb
 
 from shop_dataset import NormalVMAE, AbnormalVMAE
-from classifier import MILClassifier
-from loss import MIL
+from classifier import WSAD
+from loss import MIL, LossComputer
 
 
 def parse_args():
@@ -62,8 +62,13 @@ def parse_args():
     parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "../pths"))
     # pth 파일 저장 경로
 
-    parser.add_argument("--model_name", type=str, default="MIL")
+    parser.add_argument("--model_name", type=str, default="BNWVAD")
     # import_module로 불러올 model name
+
+    parser.add_argument("--len_feature", type=int, default=710)
+    # npy파일 feature length
+    parser.add_argument("--num_segments", type=int, default=11)
+    # 영상 segment 개수
 
     parser.add_argument("--resume_name", type=str, default="")
     # resume 파일 이름
@@ -80,13 +85,19 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=30)
     # parser.add_argument("--val_batch_size", type=int, default=1)
     # parser.add_argument("--val_num_workers", type=int, default=0)
-    parser.add_argument("--learning_rate", type=float, default=0.001)
+    parser.add_argument("--learning_rate", type=float, default=0.0001)
+    parser.add_argument("--weight_decay", type=float, default=0.00005)
     parser.add_argument("--max_epoch", type=int, default=1000)
 
     parser.add_argument("--save_interval", type=int, default=1)
     parser.add_argument("--val_interval", type=int, default=1)
     parser.add_argument("--thr", type=float, default=0.25)
-    parser.add_argument("--drop_rate", type=float, default=0.3)
+
+    parser.add_argument("--ratio_sample", type=float, default=0.2)
+    parser.add_argument("--ratio_batch", type=float, default=0.4)
+
+    parser.add_argument("--ratios", type=int, nargs="+", default=[16, 32])
+    parser.add_argument("--kernel_sizes", type=int, nargs="+", default=[1, 1, 1])
 
     parser.add_argument("--patience", type=int, default=100)
 
@@ -99,7 +110,7 @@ def parse_args():
     # parser.add_argument("--wandb_mode", type=str, default="online")
     parser.add_argument("--wandb_mode", type=str, default="disabled")
     # wandb mode
-    parser.add_argument("--wandb_run_name", type=str, default="MIL")
+    parser.add_argument("--wandb_run_name", type=str, default="BNWVAD")
     # wandb run name
 
     args = parser.parse_args()
@@ -130,11 +141,17 @@ def train(
     # val_num_workers,
     # val_batch_size,
     learning_rate,
+    weight_decay,
     max_epoch,
     val_interval,
     save_interval,
     thr,
-    drop_rate,
+    len_feature,
+    num_segments,
+    ratio_sample,
+    ratio_batch,
+    ratios,
+    kernel_sizes,
     patience,
     resume_name,
     seed,
@@ -216,7 +233,13 @@ def train(
     print(f"==>> {model_size} data_load_time: {data_load_time}")
 
     # Initialize the model
-    model = MILClassifier(drop_p=drop_rate)
+    model = WSAD(
+        input_size=len_feature,
+        ratio_sample=ratio_sample,
+        ratio_batch=ratio_batch,
+        ratios=ratios,
+        kernel_sizes=kernel_sizes,
+    )
 
     load_dict = None
 
@@ -228,8 +251,9 @@ def train(
 
     # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
     # 1e-6 => 0.0010000000474974513
-    optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
-    # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay
+    )
 
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1000, 1500], gamma=0.5)
 
@@ -239,7 +263,7 @@ def train(
     #     scaler.load_state_dict(load_dict["scaler_state_dict"])
 
     criterion = nn.BCELoss()
-    MIL_criterion = MIL
+    MPP_criterion = LossComputer()
 
     print(f"Start training..")
 
@@ -250,7 +274,7 @@ def train(
             "lr": learning_rate,
             "dataset": "무인매장",
             "n_epochs": max_epoch,
-            "loss": "BCE+MIL",
+            "loss": "MPP",
             "notes": "VAD 실험",
         },
         name=wandb_run_name + "_" + train_start,
@@ -271,7 +295,7 @@ def train(
 
         epoch_loss = 0
         epoch_n_corrects = 0
-        epoch_n_MIL_loss = 0
+        epoch_n_MPP_loss = 0
         epoch_n_loss = 0
         epoch_n_n_corrects = 0
 
@@ -291,31 +315,38 @@ def train(
                 normal_inputs = next(norm_train_iter)
 
                 abnormal_input, abnormal_gt = abnormal_inputs
-                # (batch_size, 12, 710), (batch_size, 12)
+                # (batch_size, 11, 710), (batch_size, 11)
                 normal_input, normal_gt = normal_inputs
-                # (batch_size, 12, 710), (batch_size, 12)
+                # (batch_size, 11, 710), (batch_size, 11)
 
                 inputs, gts = torch.cat((abnormal_input, normal_input), dim=1), torch.cat(
                     (abnormal_gt, normal_gt), dim=1
                 )
-                # inputs는 (batch_size, 24, 710), gts는 (batch_size, 24)
+                # inputs는 (batch_size, 22, 710), gts는 (batch_size, 22)
 
                 # batch_size = inputs.shape[0]
 
-                inputs = inputs.view(-1, inputs.size(-1)).to(device)
-                # (batch_size * 24, 710)
+                inputs = inputs.to(device)
                 gts = gts.view(-1, 1).to(device)
-                # (batch_size * 24, 1)
+                # (batch_size * 22, 1)
 
                 optimizer.zero_grad()
 
-                pred = model(inputs)
-                # pred는 (batch_size * 24, 1)
+                pred_result = model(inputs, flag="Train")
+                # pred_result["pre_normal_scores"]: normal_scores[0 : b // 2],
+                # pred_result["bn_results"]: bn_results,
+                # pred_result["normal_scores"]: normal_scores,
+                # pred_result["scores"]: distance_sum * normal_scores,
+
+                # pred = pred_result["normal_scores"].view(-1, 1)
+                pred = pred_result["scores"].view(-1, 1)
+                # pred_result["normal_scores"]는 (batch_size, 22)
+                # => pred는 (batch_size * 22, 1)
 
                 loss = criterion(pred, gts)
-                MIL_loss = MIL_criterion(pred, batch_size, abnormal_input.size(1))
-                sum_loss = loss + MIL_loss
-                # sum_loss = MIL_loss
+                MPP_loss = MPP_criterion(pred_result)
+                # sum_loss = loss + MPP_loss
+                sum_loss = MPP_loss
                 sum_loss.backward()
 
                 # loss.backward()
@@ -337,7 +368,7 @@ def train(
                     corrects = torch.sum(pred_correct).item()
 
                     epoch_n_loss += loss.item()
-                    epoch_n_MIL_loss += MIL_loss.item()
+                    epoch_n_MPP_loss += MPP_loss.item()
 
                     epoch_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
 
@@ -348,20 +379,24 @@ def train(
 
             except StopIteration:
                 if not use_extra:
-
                     break
-                abnormal_input, abnormal_gt = abnormal_inputs
-                # (batch_size, 12, 710), (batch_size, 12)
 
-                inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
-                # (batch_size * 12, 710)
+                abnormal_input, abnormal_gt = abnormal_inputs
+                # (batch_size, 11, 710), (batch_size, 11)
+
+                inputs = abnormal_input.to(device)
+                # (batch_size, 11, 710)
                 gts = abnormal_gt.view(-1, 1).to(device)
-                # (batch_size * 12, 1)
+                # (batch_size * 11, 1)
 
                 optimizer.zero_grad()
 
-                pred = model(inputs)
-                # pred는 (batch_size * 12, 1)
+                # pred_result = model(inputs, flag="Train_extra")
+                pred_result = model(inputs)
+                # pred_result는 (batch_size, 11)
+
+                pred = pred_result.view(-1, 1)
+                # pred는(batch_size * 11, 1)
 
                 loss = criterion(pred, gts)
 
@@ -389,7 +424,7 @@ def train(
 
         epoch_mean_loss = epoch_loss / (total_batches - len(normal_train_loader))
         epoch_n_mean_loss = epoch_n_loss / len(normal_train_loader)
-        epoch_n_mean_MIL_loss = epoch_n_MIL_loss / len(normal_train_loader)
+        epoch_n_mean_MPP_loss = epoch_n_MPP_loss / len(normal_train_loader)
         epoch_n_accuracy = epoch_n_n_corrects / (batch_size * (len(normal_train_loader)))
         epoch_accuracy = epoch_n_corrects / (batch_size * (len(abnormal_train_loader)))
 
@@ -406,7 +441,7 @@ def train(
         train_time = train_end - epoch_start
         train_time = str(train_time).split(".")[0]
         print(
-            f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)} n_loss: {round(epoch_n_mean_loss,4)} MIL_loss: {round(epoch_n_mean_MIL_loss,4)}"
+            f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)} n_loss: {round(epoch_n_mean_loss,4)} MPP_loss: {round(epoch_n_mean_MPP_loss,4)}"
         )
         print(f"accuracy: {epoch_accuracy:.2f} n_accuracy: {epoch_n_accuracy:.2f}")
         print(f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}")
@@ -435,7 +470,7 @@ def train(
 
             with torch.no_grad():
                 total_n_loss = 0
-                total_n_MIL_loss = 0
+                total_n_MPP_loss = 0
                 total_n_n_corrects = 0
 
                 total_n_fpr = 0
@@ -471,25 +506,30 @@ def train(
                         normal_inputs = next(norm_valid_iter)
 
                         abnormal_input, abnormal_gt = abnormal_inputs
-                        # (val_batch_size, 12, 710), (val_batch_size, 192)
+                        # (val_batch_size, 11, 710), (val_batch_size, 176)
                         normal_input, normal_gt = normal_inputs
-                        # (val_batch_size, 12, 710), (val_batch_size, 12)
+                        # (val_batch_size, 11, 710), (val_batch_size, 11)
 
                         # abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
                         abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
-                        # (val_batch_size, 12)
+                        # (val_batch_size, 11)
 
                         inputs = torch.cat((abnormal_input, normal_input), dim=1)
                         gts = torch.cat((abnormal_gt2, normal_gt), dim=1)
-                        # inputs는 (val_batch_size, 24, 710), gts는 (val_batch_size, 24)
+                        # inputs는 (val_batch_size, 22, 710), gts는 (val_batch_size, 22)
 
-                        inputs = inputs.view(-1, inputs.size(-1)).to(device)
-                        # (val_batch_size * 24, 710)
+                        inputs = inputs.to(device)
+                        # (val_batch_size, 22, 710)
                         gts = gts.view(-1, 1).to(device)
-                        # (val_batch_size * 24, 1)
+                        # (val_batch_size * 22, 1)
 
-                        pred = model(inputs)
-                        # pred는 (val_batch_size * 24, 1)
+                        pred_result = model(inputs, flag="Eval_MPP")
+                        # pred_result["pre_normal_scores"]: normal_scores[0 : b // 2],
+                        # pred_result["bn_results"]: bn_results,
+                        # pred_result["scores"]: distance_sum * normal_scores,
+
+                        pred = pred_result["scores"].view(-1, 1)
+                        # pred는(batch_size * 11, 1)
 
                         val_loss = criterion(pred, gts)
                         # if val_loss > 2:
@@ -497,7 +537,7 @@ def train(
                         #     print(f"==>> gts: {gts}")
                         #     counter = patience + 1
 
-                        val_MIL_loss = MIL_criterion(pred, val_batch_size, abnormal_input.size(1))
+                        val_MPP_loss = MPP_criterion(pred_result)
 
                         pred_a = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 0, :]
                         pred_n = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 1, :]
@@ -560,7 +600,7 @@ def train(
                             total_n_ap += ap
                             total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
                             total_n_loss += val_loss.item()
-                            total_n_MIL_loss += val_MIL_loss.item()
+                            total_n_MPP_loss += val_MPP_loss.item()
 
                             total_abnormal_max += pred_a_max.item()
                             total_abnormal_mean += pred_a_mean.item()
@@ -578,19 +618,22 @@ def train(
                         # if not use_extra:
                         #     break
                         abnormal_input, abnormal_gt = abnormal_inputs
-                        # (val_batch_size, 12, 710), (val_batch_size, 192)
+                        # (val_batch_size, 11, 710), (val_batch_size, 176)
 
                         # abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
                         abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
-                        # (val_batch_size, 12)
+                        # (val_batch_size, 11)
 
-                        inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
-                        # (val_batch_size * 12, 710)
+                        inputs = abnormal_input.to(device)
+                        # (val_batch_size, 11, 710)
                         gts = abnormal_gt2.view(-1, 1).to(device)
-                        # (val_batch_size * 12, 1)
+                        # (val_batch_size * 11, 1)
 
-                        pred = model(inputs)
-                        # pred는 (val_batch_size * 12, 1)
+                        pred_result = model(inputs)
+                        # pred_result는 (batch_size, 11)
+
+                        pred = pred_result.view(-1, 1)
+                        # pred는(batch_size * 11, 1)
 
                         val_loss = criterion(pred, gts)
                         # if val_loss > 2:
@@ -660,7 +703,7 @@ def train(
                             # print("0~180 전부 0인 abnormal 영상 있음")
 
                 val_n_mean_loss = total_n_loss / (len(normal_valid_loader) - error_n_count)
-                val_n_mean_MIL_loss = total_n_MIL_loss / (len(normal_valid_loader) - error_n_count)
+                val_n_mean_MPP_loss = total_n_MPP_loss / (len(normal_valid_loader) - error_n_count)
 
                 val_n_fpr = total_n_fpr / ((len(normal_valid_loader) - error_n_count))
                 val_n_tpr = total_n_tpr / ((len(normal_valid_loader) - error_n_count))
@@ -745,7 +788,7 @@ def train(
             "train_loss": epoch_mean_loss,
             "train_accuracy": epoch_accuracy,
             "train_n_loss": epoch_n_mean_loss,
-            "train_n_MIL_loss": epoch_n_mean_MIL_loss,
+            "train_n_MPP_loss": epoch_n_mean_MPP_loss,
             "train_n_accuracy": epoch_n_accuracy,
             "valid_loss": val_mean_loss,
             "valid_fpr": val_fpr,
@@ -755,7 +798,7 @@ def train(
             "valid_ap": val_ap,
             "valid_accuracy": val_accuracy,
             "valid_n_loss": val_n_mean_loss,
-            "valid_n_MIL_loss": val_n_mean_MIL_loss,
+            "valid_n_MPP_loss": val_n_mean_MPP_loss,
             "valid_n_fpr": val_n_fpr,
             "valid_n_tpr": val_n_tpr,
             "valid_n_bthr": val_n_bthr,
@@ -781,7 +824,7 @@ def train(
         epoch_time = epoch_end - epoch_start
         epoch_time = str(epoch_time).split(".")[0]
         print(
-            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)} valid_n_loss: {round(val_n_mean_loss,4)} valid_n_MIL_loss: {round(val_n_mean_MIL_loss,4)}"
+            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)} valid_n_loss: {round(val_n_mean_loss,4)} valid_n_MIL_loss: {round(val_n_mean_MPP_loss,4)}"
         )
         print(f"valid_fpr: {val_fpr} valid_n_fpr: {val_n_fpr}")
         print(f"valid_tpr: {val_tpr} valid_n_tpr: {val_n_tpr}")
@@ -805,6 +848,7 @@ def train(
     print(f"==>> total time: {total_time}")
 
 
+# @@TODO: BNWVAD에 맞게 수정 필요
 def train2(
     normal_root_dir,
     abnormal_root_dir,
@@ -910,7 +954,7 @@ def train2(
     print(f"==>> {model_size} data_load_time: {data_load_time}")
 
     # Initialize the LSTM autoencoder model
-    model = MILClassifier(drop_p=drop_rate)
+    model = None
 
     load_dict = None
 
