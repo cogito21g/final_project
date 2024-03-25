@@ -240,7 +240,7 @@ class RT_AnomalyDetector:
 
         # anomaly threshold (default 0.02)
         # threshold = self.info["thr"]
-        threshold = 0.3
+        threshold = 0.1
 
         self.frame_count += 1  # Increment frame count
 
@@ -269,6 +269,7 @@ class RT_AnomalyDetector:
         # Run YOLOv8 tracking on the frame, persisting tracks between frames
         results = self.tracker_model.track(frame, persist=True)
 
+        # frame_checker = True
         # 1초에 3 frame만 저장해서 vmae+MIL에 사용
         if frame_checker:
             self.frame_list.append(frame.copy())
@@ -304,6 +305,7 @@ class RT_AnomalyDetector:
                 self.v_frames = []
 
                 if self.scores[-1] > threshold:
+                    # if True:
                     anomaly_text = f"Anomaly detected, score: {self.scores[-1]}"
                     for f_step, (frame_i, results_i, temp_for_db_i) in enumerate(
                         zip(self.frame_list, self.results_list, self.tfdb_list)
