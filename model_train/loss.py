@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 from functools import partial
 
+import pdb
+
 
 def MIL(y_pred, batch_size, feature_length, is_transformer=0):
     loss = torch.tensor(0.0).cuda()
@@ -87,6 +89,7 @@ class MPPLoss(nn.Module):
             pos = pos.permute(0, 2, 1).reshape(B * k, -1)
             neg = neg.permute(0, 2, 1).reshape(B * k, -1)
             loss_triplet = triplet_loss(anchor[None, ...].repeat(B * k, 1), pos, neg)
+            # pos, neg, anchor[None, ...].repeat(B * k, 1) 모두 (B * k, -1) 형태 동일
             losses_triplet.append(loss_triplet * wt)
 
         return sum(losses_triplet)
@@ -102,7 +105,7 @@ class LossComputer(nn.Module):
 
     def forward(self, result):
         loss = {}
-
+        # breakpoint()
         pre_normal_scores = result["pre_normal_scores"]
         # (n_batch_size, t snippets) 형태
         normal_loss = self.normalLoss(pre_normal_scores)

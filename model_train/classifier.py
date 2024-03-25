@@ -470,7 +470,7 @@ class WSAD(nn.Module):
                 select_normals=select_normals,
                 select_abnormals=select_abnormals,
             )
-
+            # breakpoint()
             distance_sum = sum(distances)
 
             return {
@@ -491,26 +491,20 @@ class WSAD(nn.Module):
                 "scores": distance_sum * normal_scores,
             }
         elif flag == "Train_extra":
-            return normal_scores
+            distance_sum = sum(distances)
+            # (batch_size, t snippets) 형태인 distance들 sum
+
+            return {
+                "normal_scores": normal_scores,
+                "scores": distance_sum * normal_scores,
+            }
         elif flag == "Eval_MPP":
 
             distance_sum = sum(distances)
             # (batch_size, t snippets) 형태인 distance들 sum
 
             return {
-                "pre_normal_scores": normal_scores[0 : b // 2],
-                # classifier 학습에 사용되는 normal loss 계산에는 label 노이즈가 없는 normal 영상만 사용
-                # (label noise: MIL은 비디오 단위 라벨링만 있음
-                # => 이상 영상안의 normal snippet을 abnormal snippet으로 판단 하는 등의 noise 발생 가능)
-                # 정상 영상의 snippet들은 무조건 정상 => 정상 영상 하나의 t snippets의 scores => t 차원 score 벡터
-                # ==> 이 t 차원 score 벡터의 L2 norm 값 * n_batch_size 개 정상 영상 == normal loss
-                # ==> L2 norm인 normal loss가 작아지기 위해서 정상 영상 snippet들의 예측 score가 작아지는 방향으로 학습
-                # 논문 3.4 확인
-                "bn_results": bn_results,
-                # mpp loss 계산에 사용
-                # 논문 3.2 확인
-                # @@@@@@@@@@@@@@@@@@@@@@@@@
-                # bce loss를 위해 추가
+                "normal_scores": normal_scores,
                 "scores": distance_sum * normal_scores,
             }
         else:
