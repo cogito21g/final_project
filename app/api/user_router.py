@@ -3,10 +3,9 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from database import models
+from database import models, crud
 from database.database import get_db
 from utils.security import pwd_context
-
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(prefix="/user")
@@ -39,9 +38,7 @@ async def signup_post(request: Request,
 			user_info = models.User(email = body['email'],
 									password = pwd_context.hash(body['pw']))
 				
-			db.add(user_info)
-			db.commit()
-			db.refresh(user_info)
+			crud.create_user(db, user_info)
 			return RedirectResponse(url="/user/login")
 	
 	return templates.TemplateResponse("signup.html", {"request": request, "err": err_msg})

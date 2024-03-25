@@ -50,9 +50,6 @@
                         <div style="color: green;">분석 완료</div>
                     {% else %}
                         <div style="color: red;">분석중</div>
-                            <!-- <div class="spinner-border text-success" role="status">
-                                <span class="sr-only"></span>
-                            </div> -->
                     {% endif %}
                     </td>
                     <td>
@@ -116,42 +113,9 @@
     </div>
 </div>
 
+{% endblock %}
 
-<script>
-    function redirectToDetails(user_id, upload_id) {
-        // URL 생성
-        let url = `/album/details?user_id=${user_id}&upload_id=${upload_id}`;
-
-        // 페이지 리디렉션
-        window.location.href = url;
-    }
-</script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        let editButtons = document.querySelectorAll('.edit-btn');
-        let deleteButtons = document.querySelectorAll('.delete-btn');
-
-        editButtons.forEach(function(button) {
-            button.addEventListener('click', function() {
-                let uploadId = this.getAttribute('data-uploadid');
-                let origin_name = this.getAttribute('data-name');
-
-                document.getElementById('modifyUploadID').value = uploadId;
-                document.getElementById('originName').value = origin_name;
-            });
-        });
-
-
-        deleteButtons.forEach(function(button) {
-            button.addEventListener('click', function() {
-                let uploadId = this.getAttribute('data-uploadid');
-                let isRealTime = this.getAttribute('data-is-real-time');
-
-                document.getElementById('deleteUploadID').value = uploadId;
-                document.getElementById('isRealTime').value = isRealTime;
-            });
-        });
-    });
-</script>
+{% block script %}
+<script src="./src/album_list.js"> </script>
 {% endblock %}    
 </html>

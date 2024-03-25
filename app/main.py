@@ -3,6 +3,7 @@ from datetime import timedelta, datetime
 from fastapi import FastAPI, Request, Response, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 from jose import jwt
 
@@ -13,15 +14,16 @@ from utils.security import get_current_user
 templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
+app.mount("/src", StaticFiles(directory="templates/src"), name="src")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://10.28.224.98:30082/30082"], 
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+ 
 @app.get("/")
 async def main_get(request:Request):
 	user = get_current_user(request)

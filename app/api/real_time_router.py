@@ -39,11 +39,11 @@ async def real_time_get(request: Request):
 
 @router.post("")
 async def realtime_post(request: Request,
-                    name: str = Form(...),
-                    real_time_video: str = Form(...),
-                    datetime: datetime = Form(...),
-                    thr: float = Form(...),
-                    db: Session = Depends(get_db)):
+                        name: str = Form(...),
+                        real_time_video: str = Form(...),
+                        datetime: datetime = Form(...),
+                        thr: float = Form(...),
+                        db: Session = Depends(get_db)):
 
     user = get_current_user(request)
     user = crud.get_user_by_email(db=db, email=user.email)
@@ -99,7 +99,8 @@ async def check_and_send_email(db, video_id, user_id, last_point, smtp):
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+async def websocket_endpoint(websocket: WebSocket,
+                             db: Session = Depends(get_db)):
     await websocket.accept()
     smtp = await crud.create_smtp_server()
 
@@ -162,10 +163,9 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
 
 @router.get("/stream")
 async def get_stream(request: Request,
-    user_id: int = Query(...),
-    upload_id: int = Query(...),
-    db: Session = Depends(get_db)
-    ):
+                     user_id: int = Query(...),
+                     upload_id: int = Query(...),
+                     db: Session = Depends(get_db)):
     
     user = get_current_user(request)
         

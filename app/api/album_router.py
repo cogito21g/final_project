@@ -25,7 +25,6 @@ async def upload_get(request: Request,
         return RedirectResponse(url='/user/login')
         
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
-    
     return templates.TemplateResponse("album_list.html", {'request': request, 'token': user.email, 'album_list':album_list})
 
 

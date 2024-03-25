@@ -31,14 +31,13 @@ async def upload_get(request: Request):
 
 @router.post("")
 async def upload_post(request: Request,
-                    background_tasks: BackgroundTasks,
-                    name: str = Form(...),
-                    upload_file: UploadFile = File(...),
-                    datetime: datetime = Form(...),
-                    thr: float = Form(...),
-                    db: Session = Depends(get_db)):
+                      background_tasks: BackgroundTasks,
+                      name: str = Form(...),
+                      upload_file: UploadFile = File(...),
+                      datetime: datetime = Form(...),
+                      thr: float = Form(...),
+                      db: Session = Depends(get_db)):
     
-
     user = get_current_user(request)
     err_msg = {"file_ext": None}
 
@@ -77,9 +76,8 @@ async def upload_post(request: Request,
         "video_id": crud.get_video(db=db, upload_id=uploaded.upload_id).video_id
     }
 
-    # background_tasks.add_task(run_model,
-    #                           video_url, upload_file, info, s3, settings, db)  
-    
+    background_tasks.add_task(run_model,
+                              video_url, upload_file, info, s3, settings, db)  
     
     redirect_url = f"/album/details?user_id={info['user_id']}&upload_id={info['upload_id']}"
 
