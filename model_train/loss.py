@@ -1,5 +1,8 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
+
+from functools import partial
 
 
 def MIL(y_pred, batch_size, feature_length, is_transformer=0):
@@ -46,3 +49,75 @@ def MIL(y_pred, batch_size, feature_length, is_transformer=0):
     loss = (loss + sparsity + smooth) / batch_size
 
     return loss
+
+
+class NormalLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, normal_scores):
+        """
+        normal_scores: [bs, pre_k]
+        """
+        loss_normal = torch.norm(normal_scores, dim=1, p=2)
+        # normal_scores는 정상영상의 snippet score만 있는 상태 => (n_batch_size, t snippets)
+
+        return loss_normal.mean()
+
+
+class MPPLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.w_triplet = [5, 20]
+
+    def forward(self, anchors, variances, select_normals, select_abnormals):
+        losses_triplet = []
+
+        def mahalanobis_distance(mu, x, var):
+            return torch.sqrt(torch.sum((x - mu) ** 2 / var, dim=-1))
+
+        for anchor, var, pos, neg, wt in zip(
+            anchors, variances, select_normals, select_abnormals, self.w_triplet
+        ):
+            triplet_loss = nn.TripletMarginWithDistanceLoss(
+                margin=1, distance_function=partial(mahalanobis_distance, var=var)
+            )
+
+            B, C, k = pos.shape
+            pos = pos.permute(0, 2, 1).reshape(B * k, -1)
+            neg = neg.permute(0, 2, 1).reshape(B * k, -1)
+            loss_triplet = triplet_loss(anchor[None, ...].repeat(B * k, 1), pos, neg)
+            losses_triplet.append(loss_triplet * wt)
+
+        return sum(losses_triplet)
+
+
+class LossComputer(nn.Module):
+    def __init__(self, w_normal=1.0, w_mpp=1.0):
+        super().__init__()
+        self.w_normal = w_normal
+        self.w_mpp = w_mpp
+        self.mppLoss = MPPLoss()
+        self.normalLoss = NormalLoss()
+
+    def forward(self, result):
+        loss = {}
+
+        pre_normal_scores = result["pre_normal_scores"]
+        # (n_batch_size, t snippets) 형태
+        normal_loss = self.normalLoss(pre_normal_scores)
+        # normal_loss 계산에는 정상영상의 정상 snippet들 score만 사용
+        # 논문 3.4 확인
+        loss["normal_loss"] = normal_loss
+
+        anchors = result["bn_results"]["anchors"]
+        variances = result["bn_results"]["variances"]
+        select_normals = result["bn_results"]["select_normals"]
+        select_abnormals = result["bn_results"]["select_abnormals"]
+
+        mpp_loss = self.mppLoss(anchors, variances, select_normals, select_abnormals)
+        loss["mpp_loss"] = mpp_loss
+
+        loss["total_loss"] = self.w_normal * normal_loss + self.w_mpp * mpp_loss
+
+        return loss["total_loss"], loss

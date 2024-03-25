@@ -206,7 +206,7 @@ for folder_name in folder_list:
 
     print(f"{folder_name} feature extracting ended. Elapsed time: {total_time}")
 
-segments_num = 1
+# segments_num = 1
 # 모델에 들어갈 frame수는 16 * segments_num
 
 model = create_model(
