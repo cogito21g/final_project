@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 from torch.utils.data import Dataset, DataLoader, random_split, ConcatDataset
 
-from sklearn.metrics import roc_auc_score, roc_curve
+from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_curve
 import sklearn.metrics
 from sklearn.preprocessing import MinMaxScaler
 
@@ -314,8 +314,8 @@ def train(
 
                 loss = criterion(pred, gts)
                 MIL_loss = MIL_criterion(pred, batch_size, abnormal_input.size(1))
-                # sum_loss = loss + MIL_loss
-                sum_loss = MIL_loss
+                sum_loss = loss + MIL_loss
+                # sum_loss = MIL_loss
                 sum_loss.backward()
 
                 # loss.backward()
@@ -442,6 +442,7 @@ def train(
                 total_n_tpr = 0
                 total_n_bthr = 0
                 total_n_auc = 0
+                total_n_ap = 0
 
                 total_loss = 0
                 total_n_corrects = 0
@@ -450,6 +451,7 @@ def train(
                 total_tpr = 0
                 total_bthr = 0
                 total_auc = 0
+                total_ap = 0
 
                 error_n_count = 0
                 error_count = 0
@@ -537,8 +539,10 @@ def train(
                             # auc = roc_auc_score(y_true=gt_np, y_score=pred)
 
                             fpr, tpr, cut = roc_curve(y_true=gt_np, y_score=pred_np)
+                            precision, recall, cut2 = precision_recall_curve(gt_np, pred_np)
 
                             auc = sklearn.metrics.auc(fpr, tpr)
+                            ap = sklearn.metrics.auc(recall, precision)
 
                             diff = tpr - fpr
                             diff_idx = np.argmax(diff)
@@ -553,6 +557,7 @@ def train(
                             total_n_bthr += best_thr if diff_idx != 0 else 1
 
                             total_n_auc += auc
+                            total_n_ap += ap
                             total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
                             total_n_loss += val_loss.item()
                             total_n_MIL_loss += val_MIL_loss.item()
@@ -621,8 +626,10 @@ def train(
                             # auc = roc_auc_score(y_true=abnormal_gt2, y_score=pred)
 
                             fpr, tpr, cut = roc_curve(y_true=abnormal_gt, y_score=pred_abnormal_np)
+                            precision, recall, cut2 = precision_recall_curve(abnormal_gt, pred_abnormal_np)
 
                             auc = sklearn.metrics.auc(fpr, tpr)
+                            ap = sklearn.metrics.auc(recall, precision)
 
                             diff = tpr - fpr
                             diff_idx = np.argmax(diff)
@@ -637,6 +644,7 @@ def train(
                             total_bthr += best_thr if diff_idx != 0 else 1
 
                             total_auc += auc
+                            total_ap += ap
                             total_n_corrects += corrects / abnormal_input.size(1)
                             # normal + abnormal 24개와 다르게 abnormal 12개만 있음 -> /12 => 2/24
                             total_loss += val_loss.item()
@@ -658,18 +666,29 @@ def train(
                 val_n_tpr = total_n_tpr / ((len(normal_valid_loader) - error_n_count))
                 val_n_bthr = total_n_bthr / ((len(normal_valid_loader) - error_n_count))
                 val_n_auc = total_n_auc / (len(normal_valid_loader) - error_n_count)
+                val_n_ap = total_n_ap / (len(normal_valid_loader) - error_n_count)
 
                 val_n_accuracy = total_n_n_corrects / ((len(normal_valid_loader) - error_n_count))
-                val_mean_loss = total_loss / (
-                    len(abnormal_valid_loader) - len(normal_valid_loader) - error_count
+
+                val_mean_loss = (total_loss + total_n_loss) / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
                 )
 
-                val_fpr = total_fpr / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
-                val_tpr = total_tpr / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
-                val_bthr = total_bthr / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
-                val_auc = total_auc / (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
-                val_accuracy = total_n_corrects / (
-                    (len(abnormal_valid_loader) - len(normal_valid_loader) - error_count)
+                val_fpr = (total_fpr + total_n_fpr) / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
+                val_tpr = (total_tpr + total_n_tpr) / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
+                val_bthr = (total_bthr + total_n_bthr) / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
+                val_auc = (total_auc + total_n_auc) / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
+                val_ap = (total_ap + total_n_ap) / (len(abnormal_valid_loader) - error_n_count - error_count)
+                val_accuracy = (total_n_corrects + total_n_n_corrects) / (
+                    (len(abnormal_valid_loader) - error_n_count - error_count)
                 )
                 # for loop 한번에 abnormal 12, normal 12해서 24개 정답 확인
 
@@ -733,6 +752,7 @@ def train(
             "valid_tpr": val_tpr,
             "valid_bthr": val_bthr,
             "valid_auc": val_auc,
+            "valid_ap": val_ap,
             "valid_accuracy": val_accuracy,
             "valid_n_loss": val_n_mean_loss,
             "valid_n_MIL_loss": val_n_mean_MIL_loss,
@@ -740,6 +760,7 @@ def train(
             "valid_n_tpr": val_n_tpr,
             "valid_n_bthr": val_n_bthr,
             "valid_n_auc": val_n_auc,
+            "valid_n_ap": val_n_ap,
             "valid_n_accuracy": val_n_accuracy,
             "learning_rate": scheduler.get_last_lr()[0],
             "train_abnormal_max_mean": epoch_mean_abnormal_max,
