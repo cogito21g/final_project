@@ -362,7 +362,11 @@ class WSAD(nn.Module):
         # torch.topk(abn_distance, select_num_sample, dim=-1)는 top k개 value와 그 value들 indices를 담고 있다
         # value와 indices 둘 다 (a_batch_size, top K = select_num_sample) 형태
         # => [1]로 indices만 가져오기
-        mask_select_abnormal_sample.scatter_(dim=1, index=topk_abnormal_sample, src=True)
+        mask_select_abnormal_sample.scatter_(
+            dim=1,
+            index=topk_abnormal_sample,
+            src=torch.full_like(topk_abnormal_sample, True, dtype=torch.bool),
+        )
         # (a_batch_size, t snippets) 형태이고 True는 a_batch_size * select_num_sample개이고 나머지는 False
         # (top k에 속하는 index 자리만 True, 나머지는 False)
         # scatter는 gather의 reverse operation
@@ -372,7 +376,11 @@ class WSAD(nn.Module):
         topk_abnormal_batch = torch.topk(abn_distance_flatten, select_num_batch, dim=-1)[1]
         # (a_batch_size * select_num_batch)
         # top K = select_num_batch 개 indices
-        mask_select_abnormal_batch.scatter_(dim=0, index=topk_abnormal_batch, src=True)
+        mask_select_abnormal_batch.scatter_(
+            dim=0,
+            index=topk_abnormal_batch,
+            src=torch.full_like(topk_abnormal_batch, True, dtype=torch.bool),
+        )
         # (a_batch_size * t snippets)
 
         mask_select_abnormal = mask_select_abnormal_batch | mask_select_abnormal_sample.reshape(-1)
