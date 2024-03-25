@@ -18,95 +18,82 @@ Y,(hn,cn) = LSTM(X)
 '''
 
 class Encoder(nn.Module):
-    def __init__(self, seq_len, n_features, embedding_dim=64):
+    '''
+    input: input_seq: (batch_size, seq_len, n_features) -> (1, 20, 38)
+    output: hidden_cell -> (hn, cn)
+        -> ((num_layers, batch_size, hidden_size), (num_layers, batch_size, hidden_size))
+    '''
+    def __init__(self, num_layers, hidden_size, n_features, device):
         super(Encoder, self).__init__()
-        self.seq_len, self.n_features = seq_len, n_features
-        self.embedding_dim, self.hidden_dim = (
-            embedding_dim, 2 * embedding_dim
-        )
-        
-        self.rnn1 = nn.LSTM(
-          input_size=n_features,
-          hidden_size=self.hidden_dim,
-          num_layers=1,
-          batch_first=True
-        )
-        
-        self.rnn2 = nn.LSTM(
-          input_size=self.hidden_dim,
-          hidden_size=embedding_dim,
-          num_layers=1,
-          batch_first=True
-        )
-        
-    def forward(self, x):
-        x, (hidden_n, cell_n) = self.rnn1(x) # x: [batch_size, seq_len, hidden_dim]
-        x, (hidden_n, cell_n) = self.rnn2(x) # x: [batch_size, seq_len, embedding_dim]
-        # decoder 에 가는 것은 마지막 sequence => [1, 1, 64]
-        return  x[:,-1,:]
-    
 
-class TimeDistributed(nn.Module):
-    def __init__(self, module, batch_first=True):
-        super(TimeDistributed, self).__init__()
-        self.module = module
-        self.batch_first = batch_first
+        self.input_size = n_features
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.device = device
 
-    def forward(self, x):
-        if len(x.size()) <= 2:
-            return self.module(x)
-        # Squash batch_size and seq_len into a single axis
-        x_reshape = x.contiguous().view(-1, x.size(-1))  # (batch_size * seq_len, input_size) => (20, 128)
-        y = self.module(x_reshape) # linear layer, output: n_features(38)
-        # We have to reshape Y
-        if self.batch_first:
-            y = y.contiguous().view(x.size(0), -1, y.size(-1))  # (batch_size, seq_len, output_size)
-        else:
-            y = y.view(-1, x.size(1), y.size(-1))  # (seq_len, batch_size, output_size)
-        return y
-    
-    
+        self.lstm = nn.LSTM(input_size=n_features, hidden_size=hidden_size,
+                            num_layers=num_layers, batch_first=True)
+
+    def initHidden(self, batch_size):
+        '''
+        intialize hn, cn
+        '''
+        self.hidden_cell = (
+            torch.randn((self.num_layers, batch_size, self.hidden_size), dtype=torch.float).to(self.device),
+            torch.randn((self.num_layers, batch_size, self.hidden_size), dtype=torch.float).to(self.device)
+        )
+
+    def forward(self, input_seq):
+        self.initHidden(input_seq.shape[0])
+        _, self.hidden_cell = self.lstm(input_seq, self.hidden_cell)
+        return self.hidden_cell
+
+
 class Decoder(nn.Module):
-    def __init__(self, prediction_time=1, input_dim=64, n_features=1):
+    '''
+    input: (input_seq, hidden_cell)
+        input_seq: 
+        hidden_cell: encoder 에서 넘어온 hidden_cell (hn, cn)
+    output: 
+        decoder output: (batch_size, seq_len, n_features) -> (1, 1, 38)
+        linear output: (batch_size, n_features) -> (1, 38)
+    '''
+    def __init__(self, num_layers, hidden_size, n_features, device):
         super(Decoder, self).__init__()
-        # input 은 encoder 에서 나온 embedding_dim
-        self.seq_len, self.input_dim = prediction_time, input_dim
-        self.hidden_dim, self.n_features = 2 * input_dim, n_features
-        
-        self.rnn1 = nn.LSTM(
-          input_size=input_dim,
-          hidden_size=input_dim,
-          num_layers=1,
-          batch_first=True
-        )
-        
-        self.rnn2 = nn.LSTM(
-          input_size=input_dim,
-          hidden_size=self.hidden_dim,
-          num_layers=1,
-          batch_first=True
-        )
-        
-        # time_distributed
-        # linear 로 1차원으로 복원 후 각 time 에서 출력된 아웃풋을 linear layer 와 연결
-        self.output_layer = torch.nn.Linear(self.hidden_dim, n_features)
-        self.timedist = TimeDistributed(self.output_layer)
-        
-    def forward(self, x):
-        x=x.reshape(-1,1,self.input_dim).repeat(1,self.seq_len,1) # [batch * last seq_len, 1 * seq_len, embedding_dim] => [1, 20, 64]
-        x, (hidden_n, cell_n) = self.rnn1(x) # input [1,20,64]
-        x, (hidden_n, cell_n) = self.rnn2(x) # input [1,20,128]
-        return self.timedist(x)
+
+        self.input_size = n_features
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.device = device
+
+        self.lstm = nn.LSTM(input_size=n_features, hidden_size=hidden_size,
+                            num_layers=num_layers, batch_first=True)
+        self.linear = nn.Linear(in_features=hidden_size, out_features=n_features)
+
+    def forward(self, input_seq, hidden_cell):
+        output, hidden_cell = self.lstm(input_seq, hidden_cell)
+        output = self.linear(output)
+        return output, hidden_cell
     
     
-class LSTMAutoencoder(nn.Module):
-    def __init__(self, seq_len, prediction_time, n_features, embedding_dim=64):
-        super(LSTMAutoencoder, self).__init__()
-        self.encoder = Encoder(seq_len, n_features, embedding_dim)
-        self.decoder = Decoder(prediction_time, embedding_dim, n_features)
-    def forward(self, x):
-        # x: [1, seq_len, n_features]
-        x_e = self.encoder(x) # x_e: [batch_size, last seq_len, embedding_dim]
-        x_d = self.decoder(x_e) 
-        # final output(x_d): [1, seq_len, n_features]
-        return x_d
+class LSTMAutoEncoder(nn.Module):
+    '''
+    output: input seq_len(20) 모두 복원
+        reconstruction 순서는 입력의 반대.
+    '''
+    def __init__(self, num_layers, hidden_size, n_features, device):
+        super(LSTMAutoEncoder, self).__init__()
+        self.device = device
+        self.encoder = Encoder(num_layers, hidden_size, n_features, device)
+        self.decoder = Decoder(num_layers, hidden_size, n_features, device)
+
+    def forward(self, input_seq):
+        output = torch.zeros(size=input_seq.shape, dtype=torch.float)
+        hidden_cell = self.encoder(input_seq)
+        input_decoder = torch.zeros((input_seq.shape[0], 1, input_seq.shape[2]), dtype=torch.float).to(self.device)
+        for i in range(input_seq.shape[1] - 1, -1, -1):
+            output_decoder, hidden_cell = self.decoder(input_decoder, hidden_cell)
+            input_decoder = output_decoder
+            output[:, i, :] = output_decoder[:, 0, :]
+            
+        return output.to(self.device)

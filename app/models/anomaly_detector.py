@@ -12,6 +12,7 @@ from crud import crud
 from schemas import schemas
 
 import os
+import sys
 import uuid
 import json
 from datetime import datetime, time
@@ -19,43 +20,10 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 
 import torch
-import torch.nn as nn
 
-class LSTMAutoencoder(nn.Module):
-    def __init__(self, sequence_length, n_features, prediction_time):
-        super(LSTMAutoencoder, self).__init__()
-
-        self.sequence_length = sequence_length
-        self.n_features = n_features
-        self.prediction_time = prediction_time
-
-        # Encoder
-        self.encoder = nn.LSTM(input_size=n_features, hidden_size=100, batch_first=True)
-        self.encoder2 = nn.LSTM(input_size=100, hidden_size=50, batch_first=True)
-
-        # Repeat vector for prediction_time
-        self.repeat_vector = nn.Sequential(
-            nn.ReplicationPad1d(padding=(0, prediction_time - 1)),
-            nn.ReplicationPad1d(padding=(0, 0))  # Adjusted padding
-        )
-
-        # Decoder
-        self.decoder = nn.LSTM(input_size=50, hidden_size=100, batch_first=True)
-        self.decoder2 = nn.LSTM(input_size=100, hidden_size=n_features, batch_first=True)
-
-    def forward(self, x):
-        # Encoder
-        _, (x, _) = self.encoder(x)
-        _, (x, _) = self.encoder2(x)
-
-        # Repeat vector for prediction_time
-        x = self.repeat_vector(x)
-
-        # Decoder
-        _, (x, _) = self.decoder(x)
-        _, (x, _) = self.decoder2(x)
-
-        return x
+sys.path.append('/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models')
+from models.lstmae.lstm_ae_old import LSTMAutoencoder
+from models.lstmae.lstm_ae import LSTMAutoEncoder
 
 class AnomalyDetector:
     def __init__(self, video_file, info, s3_client, settings, db):
@@ -195,9 +163,9 @@ class AnomalyDetector:
         n_features = 38
         
         # LSTM autoencoder
-        checkpoint = torch.load('/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/pytorch_model.pth')
-        autoencoder_model = LSTMAutoencoder(sequence_length, n_features, prediction_time)
-        autoencoder_model.load_state_dict(checkpoint)
+        checkpoint = torch.load('/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/LSTM_20240324_181106_best.pth')
+        autoencoder_model = LSTMAutoencoder(sequence_length, prediction_time, n_features)
+        autoencoder_model.load_state_dict(checkpoint['model_state_dict'])
         
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         tracker_model.to(device)
@@ -319,7 +287,6 @@ class AnomalyDetector:
                                 
                                 # Check if the MSE exceeds the threshold to detect an anomaly
                                 if mse > 1.5*avg_mse*0.25 + 0.75*threshold:
-                                    
                                     if(anomaly_text==""):
                                         anomaly_text = f"Focus ID {track_ids[i]}"
                                     else:
