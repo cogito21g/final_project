@@ -39,6 +39,7 @@ pths/
 app/models/pts
 app/models/yolov8n-pose.pt
 app/yolov8n-pose.pt
+.netrc
 
 ### macOS ###
 # General
