@@ -4,6 +4,9 @@
 <title>Main Page</title>
 {% endblock %}
 
+{% block style %}
+{% endblock %}
+
 {% block header %}
 {{ super() }}
 {% endblock %}
@@ -22,7 +25,8 @@
             <!-- Three columns of text below the carousel -->
             <div class="row">
                 <div class="col-lg-4 text-center">
-                    <img src="https://cdn.icon-icons.com/icons2/1515/PNG/512/videocamera_105107.png" alt="Image 1" class="img-fluid rounded" style="width: 150px; height: 150px;">
+                    <img src="https://cdn.icon-icons.com/icons2/1515/PNG/512/videocamera_105107.png" alt="Image 1"
+                        class="img-fluid rounded" style="width: 150px; height: 150px;">
                     <h2 class="fw-normal">녹화 영상</h2>
                     <p>녹화된 영상을 업로드하여 <br> 이상행동을 탐지합니다.</p>
                     {% if token %}
@@ -32,7 +36,8 @@
                     {% endif %}
                 </div><!-- /.col-lg-4 -->
                 <div class="col-lg-4 text-center">
-                    <img src="https://media.istockphoto.com/id/1138989739/ko/%EB%B2%A1%ED%84%B0/%EA%B0%90%EC%8B%9C-%EC%B9%B4%EB%A9%94%EB%9D%BC-%EC%95%84%EC%9D%B4%EC%BD%98.jpg?s=612x612&w=0&k=20&c=sPpguNIppRGUWRwGMt_5C128_d5K6TE1W-unJWINA5k=" alt="Image 1" class="img-fluid rounded" style="width: 150px; height: 150px;" >
+                    <img src="https://media.istockphoto.com/id/1138989739/ko/%EB%B2%A1%ED%84%B0/%EA%B0%90%EC%8B%9C-%EC%B9%B4%EB%A9%94%EB%9D%BC-%EC%95%84%EC%9D%B4%EC%BD%98.jpg?s=612x612&w=0&k=20&c=sPpguNIppRGUWRwGMt_5C128_d5K6TE1W-unJWINA5k="
+                        alt="Image 1" class="img-fluid rounded" style="width: 150px; height: 150px;">
                     <h2 class="fw-normal">실시간</h2>
                     <p>웹캠, CCTV 등을 연결하여 <br> 실시간으로 이상행동을 탐지합니다.</p>
                     {% if token %}
@@ -42,7 +47,8 @@
                     {% endif %}
                 </div><!-- /.col-lg-4 -->
                 <div class="col-lg-4 text-center">
-                    <img src="https://png.pngtree.com/png-clipart/20230823/original/pngtree-archive-picture-file-photo-gallery-picture-image_8222511.png" alt="Image 1" class="img-fluid rounded" style="width: 150px; height: 150px;">
+                    <img src="https://png.pngtree.com/png-clipart/20230823/original/pngtree-archive-picture-file-photo-gallery-picture-image_8222511.png"
+                        alt="Image 1" class="img-fluid rounded" style="width: 150px; height: 150px;">
                     <h2 class="fw-normal">앨범 기능</h2>
                     <p>녹화 영상과 실시간에서 탐지된 이상행동을 <br> 스크린샷으로 저장하여 보관합니다.</p>
                     {% if token %}

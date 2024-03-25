@@ -4,6 +4,9 @@
 <title>Real Time</title>
 {% endblock %}
 
+{% block style %}
+{% endblock %}
+
 {% block header %}
 {{ super() }}
 {% endblock %}
@@ -23,7 +26,8 @@
         <div>
             <label for="customRange2" class="form-label fs-4">판단 정도</label>
             <p class="text-black-50">이상행동 판단 정도입니다. 느슨할수록 정확한 이상행동이 아니더라도 잡아냅니다. 엄격할수록 정확한 이상행동일 때만 잡아냅니다.</p>
-            <input id="customRange2" type="range" class="form-range" min="0" max="0.1" step="0.01" list="tickmarks" name="thr">
+            <input id="customRange2" type="range" class="form-range" min="0" max="0.1" step="0.01" list="tickmarks"
+                name="thr">
             <div class="d-flex justify-content-between">
                 <p class="text-black-50">느슨하게</p>
                 <p class="text-black-50">보통</p>
@@ -32,9 +36,10 @@
         </div>
         <div class="mb-3">
             <label for="realTimeVideo" class="form-label fs-4">실시간 영상 URL</label>
-            <input type="text" class="form-control" id="realTimeVideo" name="real_time_video" placeholder="실시간 영상 URL을 입력하세요. 웹캠을 사용하시려면 'web'을 입력하세요.">
+            <input type="text" class="form-control" id="realTimeVideo" name="real_time_video"
+                placeholder="실시간 영상 URL을 입력하세요. 웹캠을 사용하시려면 'web'을 입력하세요.">
         </div>
         <button type="submit" class="btn btn-primary mt-3">탐지 시작</button>
     </form>
 </div>
-{% endblock %}    
+{% endblock %}

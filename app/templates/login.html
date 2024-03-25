@@ -4,6 +4,9 @@
 <title>Login</title>
 {% endblock %}
 
+{% block style %}
+{% endblock %}
+
 {% block header %}
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
@@ -12,16 +15,19 @@
 </nav>
 {% endblock %}
 
+
+
 {% block main %}
 <div class="container text-center">
     <div class="row justify-content-center">
 
-        <form class="row g-3" id="login-form" action="/user/login" method="post" enctype="application/x-www-form-urlencoded">
-            
+        <form class="row g-3" id="login-form" action="/user/login" method="post"
+            enctype="application/x-www-form-urlencoded">
+
             <div class="col--3">
                 <label for="inputEmail4" class="form-label">Email</label>
                 <input type="email" class="form-control" id="inputEmail4" placeholder="input email" name="email">
-                {% if err.user %}  
+                {% if err.user %}
                 <p style="color: red;">{{ err.user }}</p>
                 {% endif %}
             </div>
@@ -29,11 +35,11 @@
             <div class="col--3">
                 <label for="inputPassword4" class="form-label">Password</label>
                 <input type="password" class="form-control" id="inputPassword4" placeholder="input password" name="pw">
-                {% if err.pw %}  
+                {% if err.pw %}
                 <p style="color: red;">{{ err.pw }}</p>
                 {% endif %}
             </div>
-            
+
             <div class="col-3-12">
                 <button type="submit" class="btn btn-primary btn-lg">Log In</button>
             </div>
@@ -41,7 +47,7 @@
         </form>
 
         <a class="col-12 text-black" href="/user/signup">Sign up</a>
-        
+
     </div>
 </div>
 {% endblock %}
