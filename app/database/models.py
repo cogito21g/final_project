@@ -26,7 +26,7 @@ class Upload(Base):
 
     user = relationship("User", back_populates="uploads")
     videos = relationship("Video", back_populates="upload", cascade="all, delete-orphan")
-    completes = relationship("Complete", cascade="all, delete-orphan")
+    completes = relationship("Complete", back_populates="upload", cascade="all, delete-orphan")
 
 
 class Video(Base):
@@ -59,3 +59,5 @@ class Complete(Base):
     complete_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     completed = Column(Boolean, default=False)
     upload_id = Column(Integer, ForeignKey("upload.upload_id"), nullable=False)
+
+    upload = relationship("Upload", back_populates="completes")

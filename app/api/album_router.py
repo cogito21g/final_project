@@ -36,6 +36,7 @@ async def upload_get(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/user/login")
 
     album_list = crud.get_uploads(db=db, user_id=user.user_id)
+    print(album_list[0].completes[0].completed)
     return templates.TemplateResponse("album_list.html", {'request': request, 'token': user.email, 'album_list':album_list})
 
 
@@ -135,7 +136,7 @@ async def upload_get_one(request: Request,
         video_info["frame_urls"] = frame_objs
         video_info["score_url"] = score_obj
 
-    
+    print(video_info)
     return templates.TemplateResponse("album_detail.html", {'request': request, 'token': user.email, 'video_info': video_info, 'loading': False})
 
 

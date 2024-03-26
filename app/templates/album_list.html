@@ -46,7 +46,7 @@
                     {% endif %}
                     </td>
                     <td>
-                    {% if upload.completes %}
+                    {% if upload.completes[0].completed %}
                         <div style="color: green;">분석 완료</div>
                     {% else %}
                         <div style="color: red;">분석중</div>
@@ -116,6 +116,6 @@
 {% endblock %}
 
 {% block script %}
-<script src="./src/album_list.js"> </script>
+<script src="/src/album_list.js"> </script>
 {% endblock %}    
 </html>

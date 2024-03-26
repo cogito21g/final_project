@@ -1,7 +1,3 @@
-const videoInfo = JSON.parse('{{ video_info | tojson | safe }}');
-
-const screenshotContainer = document.getElementById('screenshotContainer');
-
 if (videoInfo.frame_urls === "Nothing") {
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('container-xl', 'text-center', 'mt-2', 'py-4');

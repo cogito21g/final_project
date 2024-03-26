@@ -1,4 +1,5 @@
 from datetime import timedelta, datetime
+import os
 
 from fastapi import FastAPI, Request, Response, Form
 from fastapi.templating import Jinja2Templates
@@ -14,7 +15,8 @@ from utils.security import get_current_user
 templates = Jinja2Templates(directory="templates")
 
 app = FastAPI()
-app.mount("/src", StaticFiles(directory="templates/src"), name="src")
+static_dir = os.path.join(os.path.dirname(__file__), "templates", "src")
+app.mount("/src", StaticFiles(directory=static_dir), name="src")
 
 app.add_middleware(
     CORSMiddleware,
