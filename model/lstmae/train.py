@@ -20,8 +20,8 @@ from sklearn.preprocessing import MinMaxScaler
 import wandb
 
 from dataset import NormalDataset
-from inference.lstmae.lstm_ae_old import LSTMAutoencoder
-from inference.lstmae.lstm_ae import LSTMAutoEncoder
+from lstm_ae_old import LSTMAutoencoder
+from lstm_ae import LSTMAutoEncoder
 
 def parse_args():
     parser = ArgumentParser()

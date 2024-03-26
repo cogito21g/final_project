@@ -136,7 +136,7 @@ async def upload_get_one(request: Request,
         video_info["frame_urls"] = frame_objs
         video_info["score_url"] = score_obj
 
-    print(video_info)
+    #print(video_info)
     return templates.TemplateResponse("album_detail.html", {'request': request, 'token': user.email, 'video_info': video_info, 'loading': False})
 
 

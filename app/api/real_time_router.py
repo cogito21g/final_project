@@ -18,7 +18,10 @@ from database.database import get_db
 from utils.config import settings
 from utils.security import get_current_user
 from utils.utils import s3
-from inference.rt_anomaly_detector import RT_AnomalyDetector
+#from inference.rt_anomaly_detector import RT_AnomalyDetector
+from inference.rt_anomaly_detector_lstmae import RT_AnomalyDetector
+
+from cap_from_youtube import cap_from_youtube
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
@@ -125,7 +128,11 @@ async def websocket_endpoint(websocket: WebSocket,
                                            last_point=last_emailed_time, smtp=smtp)
                 
         else:
-            cap = cv2.VideoCapture(video_info["video_url"])
+            if "youtube" in video_info["video_url"]:
+                cap = cap_from_youtube(video_info["video_url"], '240p')
+                
+            else:
+                cap = cv2.VideoCapture(video_info["video_url"])
             
             while True:
                 success, frame = cap.read()

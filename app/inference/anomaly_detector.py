@@ -33,44 +33,6 @@ from timm.models import create_model
 
 from copy import deepcopy
 
-
-class LSTMAutoencoder(nn.Module):
-    def __init__(self, sequence_length, n_features, prediction_time):
-        super(LSTMAutoencoder, self).__init__()
-
-        self.sequence_length = sequence_length
-        self.n_features = n_features
-        self.prediction_time = prediction_time
-
-        # Encoder
-        self.encoder = nn.LSTM(input_size=n_features, hidden_size=100, batch_first=True)
-        self.encoder2 = nn.LSTM(input_size=100, hidden_size=50, batch_first=True)
-
-        # Repeat vector for prediction_time
-        self.repeat_vector = nn.Sequential(
-            nn.ReplicationPad1d(padding=(0, prediction_time - 1)),
-            nn.ReplicationPad1d(padding=(0, 0)),  # Adjusted padding
-        )
-
-        # Decoder
-        self.decoder = nn.LSTM(input_size=50, hidden_size=100, batch_first=True)
-        self.decoder2 = nn.LSTM(input_size=100, hidden_size=n_features, batch_first=True)
-
-    def forward(self, x):
-        # Encoder
-        _, (x, _) = self.encoder(x)
-        _, (x, _) = self.encoder2(x)
-
-        # Repeat vector for prediction_time
-        x = self.repeat_vector(x)
-
-        # Decoder
-        _, (x, _) = self.decoder(x)
-        _, (x, _) = self.decoder2(x)
-
-        return x
-
-
 class AnomalyDetector:
     def __init__(self, video_file, info, s3_client, settings, db):
         self.video = s3_client.generate_presigned_url(
@@ -194,7 +156,7 @@ class AnomalyDetector:
 
         # VMAE v2
         backbone = model = create_model(
-            "vit_base_patch16_224",
+            "vit_small_patch16_224",
             img_size=224,
             pretrained=False,
             num_classes=710,
@@ -202,7 +164,7 @@ class AnomalyDetector:
         )
 
         load_dict = torch.load(
-            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/vit_b_k710_dl_from_giant.pth"
+            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/model/pts/vit_s_k710_dl_from_giant.pth"
         )
 
         backbone.load_state_dict(load_dict["module"])
@@ -216,7 +178,7 @@ class AnomalyDetector:
 
         # LSTM autoencoder
         checkpoint = torch.load(
-            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/MIL_20240318_180129_best_auc.pth"
+            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/model/pts/MIL_20240325_202019_best_auc.pth"
         )
         classifier = vmae.MILClassifier(input_dim=710, drop_p=0.3)
         classifier.load_state_dict(checkpoint["model_state_dict"])
