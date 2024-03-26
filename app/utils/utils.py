@@ -4,7 +4,7 @@ from botocore.config import Config
 
 from utils.config import settings
 from database import crud
-from models.anomaly_detector import AnomalyDetector
+from inference.anomaly_detector import AnomalyDetector
 
 boto_config = Config(
     signature_version = 'v4',

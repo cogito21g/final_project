@@ -18,7 +18,7 @@ from database.database import get_db
 from utils.config import settings
 from utils.security import get_current_user
 from utils.utils import s3
-from models.rt_anomaly_detector import RT_AnomalyDetector
+from inference.rt_anomaly_detector import RT_AnomalyDetector
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(

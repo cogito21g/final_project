@@ -25,8 +25,7 @@ import albumentations as A
 
 import sys
 
-sys.path.append("/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models")
-
+sys.path.append("/data/ephemeral/home/level2-3-cv-finalproject-cv-06/model")
 import vmae
 
 # @@ timm은 0.4.12 버전 사용 필수
