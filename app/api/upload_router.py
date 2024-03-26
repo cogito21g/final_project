@@ -1,8 +1,9 @@
 from datetime import datetime
 import os
 import uuid
+import requests
 
-from fastapi import APIRouter, Response, Request, Form, UploadFile, File, Depends, BackgroundTasks, status
+from fastapi import APIRouter, Response, Request, Form, UploadFile, File, Depends, BackgroundTasks, status, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -12,7 +13,7 @@ from database import crud
 from database import schemas
 from database.database import get_db
 from utils.security import get_current_user
-from utils.utils import s3, run_model
+from utils.utils import s3
 
 templates = Jinja2Templates(directory="templates")
 
@@ -31,7 +32,6 @@ async def upload_get(request: Request):
 
 @router.post("")
 async def upload_post(request: Request,
-                      background_tasks: BackgroundTasks,
                       name: str = Form(...),
                       upload_file: UploadFile = File(...),
                       datetime: datetime = Form(...),
@@ -63,6 +63,21 @@ async def upload_post(request: Request,
     _complete_create = schemas.Complete(completed=False, upload_id=uploaded.upload_id)
     crud.create_complete(db=db, complete=_complete_create)
     
+    s3_upload_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="video 를 s3 저장소 업로드에 실패했습니다."
+    )
+    
+    try:
+        s3.upload_fileobj(
+            upload_file.file,
+            settings.BUCKET,
+            video_url,
+            ExtraArgs={'ContentType': 'video/mp4'}
+        )
+    except:
+        raise s3_upload_exception
+    
     info = {
         "user_id": user.user_id,
         "email": user.email,
@@ -73,11 +88,28 @@ async def upload_post(request: Request,
         "video_name": upload_file.filename,
         "video_uuid_name": video_name,
         "video_ext": file_ext,
-        "video_id": crud.get_video(db=db, upload_id=uploaded.upload_id).video_id
+        "video_id": crud.get_video(db=db, upload_id=uploaded.upload_id).video_id,
+        "video_url": video_url,
+    }
+    
+    model_data = {
+        "user_id": user.user_id,
+        "upload_id": uploaded.upload_id,
+        "threshold": uploaded.thr,
+        "video_uuid_name": str(video_name),
+        "video_ext": file_ext,
+        "video_id": crud.get_video(db=db, upload_id=uploaded.upload_id).video_id,
+        "video_url": video_url,
     }
 
-    background_tasks.add_task(run_model,
-                              video_url, upload_file, info, s3, settings, db)  
+    model_server_url = settings.UPLOAD_MODEL_SERVER_IP
+    try:
+        response = requests.post(model_server_url, json=model_data)
+        response.raise_for_status()  # 응답 상태 코드가 200이 아닌 경우 예외 발생
+        print("Model execution started successfully.")
+    except requests.RequestException:
+        e = "모델 서버에서 오류가 발생했습니다."
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e)
     
     redirect_url = f"/album/details?user_id={info['user_id']}&upload_id={info['upload_id']}"
 
