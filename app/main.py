@@ -34,16 +34,16 @@ async def main_get(request:Request):
 
 @app.post("/")
 async def main_post(request: Request):
-	body = await request.form()
-	email = body["email"]
-	data = {
+    body = await request.form()
+    email = body["email"]
+    data = {
         "sub": email,
         "exp": datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     }
-	token = jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-	
-	template_response = templates.TemplateResponse('main.html', {'request': request, 'token': email})
- 
+    token = jwt.encode(data, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    
+    template_response = templates.TemplateResponse('main.html', {'request': request, 'token': email})
+
     # 쿠키 저장
     template_response.set_cookie(
         key="access_token",
@@ -60,5 +60,5 @@ app.include_router(upload_router.router)
 app.include_router(album_router.router)
 app.include_router(real_time_router.router)
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=30305, reload=True)
+if __name__ == '__main__':
+	uvicorn.run("main:app", host='0.0.0.0', port=30011, reload=True)
