@@ -17,16 +17,16 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">이름</th>
-                    <th scope="col">날짜&시간</th>
-                    <th scope="col">이상탐지</th>
-                    <th scope="col">분석 여부</th>
-                    <th scope="col">Button</th>
+                <th scope="col">#</th>
+                <th scope="col">이름</th>
+                <th scope="col">날짜&시간</th>
+                <th scope="col">이상탐지</th>
+                <th scope="col">분석 여부</th>
+                <th scope="col">Button</th>
                 </tr>
             </thead>
             <tbody>
-                {% for upload in album_list %}
+            {% for upload in album_list %}
                 <tr>
                     <th scope="row">{{ loop.index }}</th>
                     <td>
@@ -39,29 +39,27 @@
                         {{ upload.date }}
                     </td>
                     <td>
-                        {% if upload.is_realtime %}
+                    {% if upload.is_realtime %}
                         실시간
-                        {% else %}
+                    {% else %}
                         녹화 영상
-                        {% endif %}
+                    {% endif %}
                     </td>
                     <td>
-                        {% if upload.completes %}
+                    {% if upload.completes %}
                         <div style="color: green;">분석 완료</div>
-                        {% else %}
+                    {% else %}
                         <div style="color: red;">분석중</div>
-                        {% endif %}
+                    {% endif %}
                     </td>
                     <td>
-                        <button class="btn btn-primary btn-sm edit-btn" data-bs-toggle="modal"
-                            data-bs-target="#modifyModal" data-uploadid="{{upload.upload_id}}"
-                            data-name="{{upload.name}}">수정</button>
-                        <button class="btn btn-primary btn-sm delete-btn" data-bs-toggle="modal"
-                            data-bs-target="#deleteModal" data-uploadid="{{upload.upload_id}}"
-                            data-is-real-time="{{upload.is_realtime}}">삭제</button>
+                        <button class="btn btn-primary btn-sm edit-btn" data-bs-toggle="modal" data-bs-target="#modifyModal" 
+                                data-uploadid="{{upload.upload_id}}" data-name="{{upload.name}}">수정</button>
+                        <button class="btn btn-primary btn-sm delete-btn" data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                data-uploadid="{{upload.upload_id}}" data-is-real-time="{{upload.is_realtime}}">삭제</button>
                     </td>
                 </tr>
-                {% endfor %}
+            {% endfor %}
             </tbody>
         </table>
     </div>
@@ -85,7 +83,7 @@
                         <input type="text" class="form-control" id="newFileName" name="new_name" placeholder="변경할 파일명">
                     </div>
                     <div class="modal-footer"></div>
-                    <button type="submit" class="btn btn-primary">변경</button>
+                    <button type="submit" class="btn btn-primary" >변경</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
                 </form>
             </div>
@@ -107,7 +105,7 @@
                     <input type="hidden" id="deleteUploadID" name="upload_id">
                     <input type="hidden" id="isRealTime" name="is_real_time">
                     <div class="modal-footer"></div>
-                    <button type="submit" class="btn btn-primary">삭제</button>
+                    <button type="submit" class="btn btn-primary" >삭제</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
                 </form>
             </div>
@@ -119,6 +117,5 @@
 
 {% block script %}
 <script src="./src/album_list.js"> </script>
-{% endblock %}
-
+{% endblock %}    
 </html>

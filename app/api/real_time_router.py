@@ -1,82 +1,53 @@
 from datetime import timedelta, datetime, date
 import pytz
-from typing import Optional, List, Tuple
-import ast
-import os
-import uuid
-import base64
 import asyncio
 import cv2
 import numpy as np
 import json
 
-from fastapi import APIRouter, Response, Request,\
-    HTTPException, Form, UploadFile, File, Cookie, Query, WebSocket, WebSocketDisconnect
-import websockets
-from websockets.exceptions import ConnectionClosed
+from fastapi import APIRouter, Request, Form, Query, Depends, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi import Depends, BackgroundTasks
-from jose import jwt, JWTError
 from sqlalchemy.orm import Session
-from starlette import status
+import websockets
+from websockets.exceptions import ConnectionClosed
 
-from core.config import get_settings
-from db.database import get_db, db_engine
-from inference import models
-from inference.rt_anomaly_detector import RT_AnomalyDetector
-from crud import crud
-from crud.crud import pwd_context
-from schemas import schemas
 
-import boto3
-from botocore.config import Config
-
-settings = get_settings()
+from database import schemas, crud
+from database.database import get_db
+from utils.config import settings
+from utils.security import get_current_user
+from utils.utils import s3
+from models.rt_anomaly_detector import RT_AnomalyDetector
 
 templates = Jinja2Templates(directory="templates")
 router = APIRouter(
     prefix="/real_time",
 )
 
-boto_config = Config(
-    signature_version = 'v4',
-)
-s3 = boto3.client("s3",
-                  config=boto_config,
-                  region_name='ap-northeast-2',
-                  aws_access_key_id=settings.AWS_ACCESS_KEY,
-                  aws_secret_access_key=settings.AWS_SECRET_KEY)
-
 detector = None
 last_emailed_time = datetime.strptime("0:00:00", '%H:%M:%S')
 
 @router.get("")
-async def realtime_get(request: Request):
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
-    else:
+async def real_time_get(request: Request):
+    user = get_current_user(request)
+    if not user:
         return RedirectResponse(url='/user/login')
+    
+    return templates.TemplateResponse("real_time.html", {'request': request, "token": user.email})
 
-    return templates.TemplateResponse("real_time.html", {'request': request, 'token': token})
 
 @router.post("")
 async def realtime_post(request: Request,
-                    name: str = Form(...),
-                    real_time_video: str = Form(...),
-                    datetime: datetime = Form(...),
-                    thr: float = Form(...),
-                    db: Session = Depends(get_db)):
-    
-    # token 정보 가져오기 -> email 을 통해 user_id 획득
-    token = request.cookies.get("access_token", None)
-    token = ast.literal_eval(token)
-    email = token['email']
+                        name: str = Form(...),
+                        real_time_video: str = Form(...),
+                        datetime: datetime = Form(...),
+                        thr: float = Form(...),
+                        db: Session = Depends(get_db)):
 
-    # email 을 통해 user 객체 획득(id, email 포함)
-    user = crud.get_user_by_email(db=db, email=email)
-    
+    user = get_current_user(request)
+    user = crud.get_user_by_email(db=db, email=user.email)
+
     # Form 과 user_id 를 이용하여 upload row insert
     _upload_create = schemas.UploadCreate(name=name, date=datetime, is_realtime=True, thr=thr, user_id=user.user_id)
     crud.create_upload(db=db, upload=_upload_create)
@@ -128,7 +99,8 @@ async def check_and_send_email(db, video_id, user_id, last_point, smtp):
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+async def websocket_endpoint(websocket: WebSocket,
+                             db: Session = Depends(get_db)):
     await websocket.accept()
     smtp = await crud.create_smtp_server()
 
@@ -191,14 +163,11 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
 
 @router.get("/stream")
 async def get_stream(request: Request,
-    user_id: int = Query(...),
-    upload_id: int = Query(...),
-    db: Session = Depends(get_db)
-    ):
+                     user_id: int = Query(...),
+                     upload_id: int = Query(...),
+                     db: Session = Depends(get_db)):
     
-    token = request.cookies.get("access_token", None)
-    if token:
-        token = ast.literal_eval(token)
+    user = get_current_user(request)
         
     video = crud.get_video(db=db, upload_id=upload_id)
     uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
@@ -216,7 +185,7 @@ async def get_stream(request: Request,
     
     # video_info = json.dumps(video_info)
     
-    return templates.TemplateResponse("stream.html", {'request': request, 'token': token, 'video_info': video_info})
+    return templates.TemplateResponse("stream.html", {'request': request, 'token': user.email, 'video_info': video_info})
 
 
 # db 에서 실시간에서 저장되는 frame url 불러오는 코드    
@@ -242,5 +211,5 @@ def fetch_data(db, upload_id):
 async def fetch_frame_data(upload_id: int = Query(...),
                            db: Session = Depends(get_db)):
     frame_data = fetch_data(db, upload_id)
-
     return frame_data
+

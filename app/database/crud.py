@@ -5,7 +5,6 @@ from sqlalchemy import func
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-
 # from email.mime.image import MIMEImage
 # from passlib.context import CryptContext
 
@@ -13,7 +12,6 @@ from database.schemas import UserBase, UserCreate, UploadCreate, VideoCreate, Fr
 from database import models
 from utils.security import get_password_hash, verify_password
 from utils.config import settings
-
 
 ## User
 def create_user(db: Session, user: UserCreate):
@@ -44,7 +42,6 @@ def authenticate(db: Session, *, email: str, password: str):
     if not verify_password(password, user.password):
         return None
     return user
-
 
 def is_active(user: UserBase) -> bool:
     return user.is_active

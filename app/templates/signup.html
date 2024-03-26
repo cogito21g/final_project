@@ -20,7 +20,7 @@
     <div class="row justify-content-center">
 
         <form class="row g-3" action="/user/signup" method="post">
-
+            
             <div class="col--3">
                 <label for="inputEmail4" class="form-label">Email</label>
                 <input type="email" class="form-control" id="inputEmail4" placeholder="input email" name="email">
@@ -39,8 +39,7 @@
 
             <div class="col--3">
                 <label for="inputPassword4" class="form-label">Password Check</label>
-                <input type="password" class="form-control" id="inputPassword4" placeholder="input password"
-                    name="check_pw">
+                <input type="password" class="form-control" id="inputPassword4" placeholder="input password" name="check_pw">
                 {% if err.check_pw %}
                 <p style="color: red;">{{ err.check_pw }}</p>
                 {% endif %}
@@ -49,7 +48,7 @@
             <div class="col-3-12">
                 <button type="submit" class="btn btn-primary btn-lg">Sign up</button>
             </div>
-
+            
         </form>
 
         <a class="col-12 text-black" href="/user/login">Log In</a>
