@@ -36,7 +36,7 @@ async def signup_post(request: Request,
 			err_msg["user"] = "invalid email"
 		else:
 			user_info = models.User(email = body['email'],
-									password = pwd_context.hash(body['pw']))
+									password = body['pw'])
 				
 			crud.create_user(db, user_info)
 			return RedirectResponse(url="/user/login")

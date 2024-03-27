@@ -45,6 +45,10 @@ class ModelInfo(BaseModel):
     video_id: int
     video_url: str
 
+@app.get("/")
+def root():
+    return {"message": "모델이 돌아가용"}
+
 # 녹화영상용
 @app.post("/run_model")
 async def run_model_endpoint(info: ModelInfo,
