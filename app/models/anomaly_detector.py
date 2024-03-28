@@ -194,8 +194,19 @@ class AnomalyDetector:
         tracker_model = YOLO("yolov8n-pose.pt")
 
         # VMAE v2
+        # backbone = model = create_model(
+        #     "vit_base_patch16_224",
+        #     img_size=224,
+        #     pretrained=False,
+        #     num_classes=710,
+        #     all_frames=16,
+        # )
+
+        # load_dict = torch.load(
+        #     "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/vit_b_k710_dl_from_giant.pth"
+        # )
         backbone = model = create_model(
-            "vit_base_patch16_224",
+            "vit_small_patch16_224",
             img_size=224,
             pretrained=False,
             num_classes=710,
@@ -203,7 +214,7 @@ class AnomalyDetector:
         )
 
         load_dict = torch.load(
-            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/vit_b_k710_dl_from_giant.pth"
+            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/vit_s_k710_dl_from_giant.pth"
         )
 
         backbone.load_state_dict(load_dict["module"])
@@ -217,9 +228,12 @@ class AnomalyDetector:
 
         # LSTM autoencoder
         checkpoint = torch.load(
-            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/MIL_20240318_180129_best_auc.pth"
+            # "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/BNWVAD_0.819_thr_498.929_n_auc_0.9649_ap_0.6897_20240325_221537_best_auc.pth",
+            "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/MIL_20240325_202019_best_auc.pth",
+            # "/data/ephemeral/home/level2-3-cv-finalproject-cv-06/app/models/pts/MIL_20240326_160135_best_auc.pth",
         )
         classifier = vmae.MILClassifier(input_dim=710, drop_p=0.3)
+        # classifier = vmae.WSAD(710)
         classifier.load_state_dict(checkpoint["model_state_dict"])
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -242,7 +256,10 @@ class AnomalyDetector:
             cap = cv2.VideoCapture(temp_name)
         fps = cap.get(cv2.CAP_PROP_FPS)
 
-        frame_inteval = fps // 3
+        frame_inteval = int(fps) // 3
+
+        if frame_inteval == 0:
+            frame_inteval = 1
 
         # Store the track history
         track_history = defaultdict(lambda: [])
@@ -281,6 +298,8 @@ class AnomalyDetector:
         # temp_for_db 임시 저장 list
         tfdb_list = []
 
+        s_list = []
+
         while cap.isOpened():
             # Read a frame from the video
             success, frame = cap.read()
@@ -299,8 +318,7 @@ class AnomalyDetector:
                 timestamp = datetime_object.strftime("%H:%M:%S")
                 temp_for_db["timestamp"] = timestamp
 
-                # Run YOLOv8 tracking on the frame, persisting tracks between frames
-                results = tracker_model.track(frame, persist=True)
+                results = tracker_model.track(frame, persist=True, verbose=False)
 
                 frame_list.append(frame.copy())
                 results_list.append(deepcopy(results))
@@ -308,40 +326,44 @@ class AnomalyDetector:
 
                 # 1초에 3 frame만 저장해서 vmae+MIL에 사용
                 if (frame_count - 1) % frame_inteval == 0:
+                    # Run YOLOv8 tracking on the frame, persisting tracks between frames
+
                     v_frame = tf(image=frame)["image"]
                     # (224, 224, 3)
                     v_frame = np.expand_dims(v_frame, axis=0)
                     # (1, 224, 224, 3)
                     v_frames.append(v_frame.copy())
 
-                    # 16 frame이 모이면 vmae+MIL 계산
-                    if len(v_frames) == 16:
+                    if len(v_frames) == 176:
                         in_frames = np.concatenate(v_frames)
-                        # (16, 224, 224, 3)
-                        in_frames = in_frames.transpose(3, 0, 1, 2)
-                        # (RGB 3, frame T=16, H=224, W=224)
-                        in_frames = np.expand_dims(in_frames, axis=0)
-                        # (1, 3, 16 * segments_num, 224, 224)
+                        # (176, 224, 224, 3)
+                        in_frames = in_frames.reshape(11, 16, 224, 224, 3)
+                        in_frames = in_frames.transpose(0, 4, 1, 2, 3)
+                        # (11, RGB 3, frame T=16, H=224, W=224)
                         in_frames = torch.from_numpy(in_frames).float()
-                        # torch.Size([1, 3, 16, 224, 224])
+                        # torch.Size([11, 3, 16, 224, 224])
 
                         in_frames = in_frames.to(device)
 
                         with torch.no_grad():
                             v_output = backbone(in_frames)
-                            # torch.Size([1, 710])
+                            # torch.Size([11, 710])
+                            v_output = v_output.view(1, 11, -1)
                             v_score = classifier(v_output)
-                            # torch.Size([1, 1])
-                        scores.append(v_score.cpu().item())
+                            v_score = v_score.view(1, 11)
+                            print(f"==>> v_score: {v_score}")
+                            print(f"==>> v_score.shape: {v_score.shape}")
+                            # torch.Size([1, 11])
+                            s_list = [v_score[0, i].cpu().item() for i in range(11)]
 
-                        v_frames = []
-
-                if len(frame_list) == 16 * frame_inteval:
+                if len(frame_list) == 176 * frame_inteval:
                     for f_step, (frame_i, results_i, temp_for_db_i) in enumerate(
                         zip(frame_list, results_list, tfdb_list)
                     ):
-                        if scores[-1] > threshold:
-                            anomaly_text = f"Anomaly detected, score: {scores[-1]}"
+                        if s_list[f_step // (16 * frame_inteval)] > threshold:
+                            anomaly_text = (
+                                f"Anomaly detected, score: {s_list[f_step // (16 * frame_inteval)]}"
+                            )
                             if results_i[0].boxes is not None:  # Check if there are results and boxes
 
                                 # Get the boxes
@@ -413,8 +435,9 @@ class AnomalyDetector:
                                 output_video.write(frame_i)
 
                             # vmae에서 보는 frame들만 db에 저장
-                            if f_step % frame_inteval == 0:
-                                temp_for_db_i["score"] = scores[-1]
+                            # if f_step % frame_inteval == 0:
+                            if f_step % (frame_inteval * 16) == 0:
+                                temp_for_db_i["score"] = s_list[f_step // (16 * frame_inteval)]
 
                                 # upload frame to s3
                                 frame_url = self.upload_frame_s3(self.s3, frame_i)
@@ -428,14 +451,19 @@ class AnomalyDetector:
                             # cv2.imshow("YOLOv8 Tracking", frame)
 
                     # 16 * frame_interval개 frame 표시 후 초기화
+                    scores.extend(deepcopy(s_list))
+                    s_list = []
                     frame_list = []
                     results_list = []
                     tfdb_list = []
+                    v_frames = []
 
             else:
                 if len(frame_list) != 0:
                     for f in frame_list:
                         output_video.write(f)
+                    if len(s_list) != 0:
+                        scores.extend(deepcopy(s_list))
 
                 # Break the loop if the end of the video is reached
                 break

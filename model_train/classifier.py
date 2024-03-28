@@ -50,8 +50,10 @@ class LSTMAutoencoder(nn.Module):
 class MILClassifier(nn.Module):
     def __init__(self, input_dim=710, drop_p=0.0):
         super().__init__()
+        self.embedding = Temporal(input_dim, 512)
+        self.selfatt = Transformer(512, 2, 4, 128, 512, dropout=0)
         self.classifier = nn.Sequential(
-            nn.Linear(input_dim, 512),
+            nn.Linear(512, 512),
             # nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(drop_p),
@@ -84,6 +86,12 @@ class MILClassifier(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
+
+        x = self.embedding(x)
+        x = self.selfatt(x)
+
+        x = x.view(-1, x.size(-1))
+
         x = self.classifier(x)
 
         return x

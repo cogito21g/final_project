@@ -302,8 +302,9 @@ def train(
 
                 # batch_size = inputs.shape[0]
 
-                inputs = inputs.view(-1, inputs.size(-1)).to(device)
+                # inputs = inputs.view(-1, inputs.size(-1)).to(device)
                 # (batch_size * 24, 710)
+                inputs = inputs.to(device)
                 gts = gts.view(-1, 1).to(device)
                 # (batch_size * 24, 1)
 
@@ -314,8 +315,8 @@ def train(
 
                 loss = criterion(pred, gts)
                 MIL_loss = MIL_criterion(pred, batch_size, abnormal_input.size(1))
-                # sum_loss = loss + MIL_loss
-                sum_loss = MIL_loss
+                sum_loss = loss + MIL_loss
+                # sum_loss = MIL_loss
                 sum_loss.backward()
 
                 # loss.backward()
@@ -353,8 +354,9 @@ def train(
                 abnormal_input, abnormal_gt = abnormal_inputs
                 # (batch_size, 12, 710), (batch_size, 12)
 
-                inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
+                # inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
                 # (batch_size * 12, 710)
+                inputs = abnormal_input.to(device)
                 gts = abnormal_gt.view(-1, 1).to(device)
                 # (batch_size * 12, 1)
 
@@ -489,8 +491,9 @@ def train(
                         gts = torch.cat((abnormal_gt2, normal_gt), dim=1)
                         # inputs는 (val_batch_size, 24, 710), gts는 (val_batch_size, 24)
 
-                        inputs = inputs.view(-1, inputs.size(-1)).to(device)
+                        # inputs = inputs.view(-1, inputs.size(-1)).to(device)
                         # (val_batch_size * 24, 710)
+                        inputs = inputs.to(device)
                         gts = gts.view(-1, 1).to(device)
                         # (val_batch_size * 24, 1)
 
@@ -590,8 +593,9 @@ def train(
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
-                        inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
+                        # inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
                         # (val_batch_size * 12, 710)
+                        inputs = abnormal_input.to(device)
                         gts = abnormal_gt2.view(-1, 1).to(device)
                         # (val_batch_size * 12, 1)
 
@@ -988,8 +992,9 @@ def train2(
 
             num_segs = inp.size(1)
 
-            inp = inp.view(-1, inp.size(-1)).to(device)
+            # inp = inp.view(-1, inp.size(-1)).to(device)
             # (batch_size * 11, 710)
+            inp = inp.to(device)
             gts = gts.view(-1, 1).to(device)
             # (batch_size * 11, 1)
 
@@ -1126,8 +1131,9 @@ def train2(
                         gts = torch.cat((abnormal_gt2, normal_gt), dim=1)
                         # inputs는 (val_batch_size, 24, 710), gts는 (val_batch_size, 24)
 
-                        inputs = inputs.view(-1, inputs.size(-1)).to(device)
+                        # inputs = inputs.view(-1, inputs.size(-1)).to(device)
                         # (val_batch_size * 24, 710)
+                        inputs = inputs.to(device)
                         gts = gts.view(-1, 1).to(device)
                         # (val_batch_size * 24, 1)
 
@@ -1227,8 +1233,9 @@ def train2(
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
-                        inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
+                        # inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
                         # (val_batch_size * 12, 710)
+                        inputs = abnormal_input.to(device)
                         gts = abnormal_gt2.view(-1, 1).to(device)
                         # (val_batch_size * 12, 1)
 
@@ -1628,8 +1635,9 @@ def train3(
 
             # batch_size = inputs.shape[0]
 
-            inputs = inputs.view(-1, inputs.size(-1)).to(device)
+            # inputs = inputs.view(-1, inputs.size(-1)).to(device)
             # (batch_size * 24, 710)
+            inputs = inputs.to(device)
             gts = gts.view(-1, 1).to(device)
             # (batch_size * 24, 1)
 
@@ -1762,8 +1770,9 @@ def train3(
                         gts = torch.cat((abnormal_gt2, normal_gt), dim=1)
                         # inputs는 (val_batch_size, 24, 710), gts는 (val_batch_size, 24)
 
-                        inputs = inputs.view(-1, inputs.size(-1)).to(device)
+                        # inputs = inputs.view(-1, inputs.size(-1)).to(device)
                         # (val_batch_size * 24, 710)
+                        inputs = inputs.to(device)
                         gts = gts.view(-1, 1).to(device)
                         # (val_batch_size * 24, 1)
 
@@ -1863,8 +1872,9 @@ def train3(
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
-                        inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
+                        # inputs = abnormal_input.view(-1, inputs.size(-1)).to(device)
                         # (val_batch_size * 12, 710)
+                        inputs = abnormal_input.to(device)
                         gts = abnormal_gt2.view(-1, 1).to(device)
                         # (val_batch_size * 12, 1)
 
@@ -2001,7 +2011,8 @@ def train3(
             #     counter += 1
 
             if best_auc < val_auc:
-                print(f"Best auc performance at epoch: {epoch + 1}, {best_auc:.4f} -> {val_auc:.4f}")
+                str_to_keep = f"Best auc performance at epoch: {epoch + 1}, {best_auc:.4f} -> {val_auc:.4f}"
+                print(str_to_keep)
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -2079,11 +2090,20 @@ def train3(
     time_end = datetime.now()
     total_time = time_end - time_start
     total_time = str(total_time).split(".")[0]
+    print(str_to_keep)
     print(f"==>> total time: {total_time}")
 
 
 def main(args):
-    train(**args.__dict__)
+    if (args.wandb_run_name).startswith("MIL_nl_feat_enhancer_"):
+        print("train 1")
+        train(**args.__dict__)
+    elif (args.wandb_run_name).startswith("MIL_nl_BCEonly_feat_enhancer_"):
+        print("train 2")
+        train2(**args.__dict__)
+    else:
+        print("train 3")
+        train3(**args.__dict__)
 
 
 if __name__ == "__main__":

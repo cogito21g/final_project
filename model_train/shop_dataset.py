@@ -327,11 +327,11 @@ class NormalVMAE(Dataset):
         self.data_list = []
 
         for folder_name in folder_list:
-            print(f"==>> {folder_name} 폴더 데이터 로딩 시작")
             if folder_name.endswith("_base") and model_size == "small":
                 continue
             elif not folder_name.endswith("_base") and model_size != "small":
                 continue
+            print(f"==>> {folder_name} 폴더 데이터 로딩 시작")
 
             folder_path = folder_name + "/"
             data_list = os.listdir(self.path + "/" + folder_path)
@@ -437,3 +437,220 @@ class AbnormalVMAE(Dataset):
         # @@ validation일때는 평균내지 않고 (192) numpy array 그대로 반환
 
         return torch.from_numpy(feature_npy[:-1, :]).float(), torch.from_numpy(gts).float()
+
+
+class NewNormalVMAE(Dataset):
+    """
+    is_train = 1 <- train, 0 <- test
+    """
+
+    def __init__(
+        self,
+        is_train=1,
+        model_size="small",
+        root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/UCFCrime/normal",
+        # label_root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal",
+        num_segments=200,
+    ):
+        super().__init__()
+        self.is_train = is_train
+
+        if self.is_train == 1:
+            self.path = root + "/train/"
+        else:
+            self.path = root + "/val/"
+        self.num_segments = num_segments
+
+        folder_list = os.listdir(self.path)
+        folder_list.sort()
+
+        self.data_list = []
+
+        for folder_name in folder_list:
+            if folder_name.endswith("_base") and model_size == "small":
+                continue
+            elif not folder_name.endswith("_base") and model_size != "small":
+                continue
+            print(f"==>> {folder_name} 폴더 데이터 로딩 시작")
+
+            folder_path = folder_name + "/"
+            data_list = os.listdir(self.path + "/" + folder_path)
+            data_list.sort()
+            data_list = [folder_path + name for name in data_list]
+            self.data_list.extend(data_list)
+            print(f"==>> {folder_name} 폴더 데이터 로딩 완료")
+
+    def __len__(self):
+        return len(self.data_list)
+
+    def __getitem__(self, idx):
+        file_name = self.data_list[idx]
+
+        feature = np.load(self.path + "/" + file_name).astype(np.float32)
+        # (원본영상 frame 수 // 16,710)
+
+        feature_npy = np.zeros(self.num_segments, 710).astype(np.float32)
+
+        sample_index = np.linspace(0, feature.shape[0], self.num_segments + 1, dtype=np.uint16)
+        # ex: feature.shape[0]이 62이고, self.num_segments이 200이면
+        # sample_index == [ 0  0  0  0  1  1  1  2  2  2  3  3  3  4  4  4  4  5  5  5  6  6  6  7
+        #   7  7  8  8  8  8  9  9  9 10 10 10 11 11 11 12 12 12 13 13 13 13 14 14
+        #  14 15 15 15 16 16 16 17 17 17 17 18 18 18 19 19 19 20 20 20 21 21 21 22
+        #  22 22 22 23 23 23 24 24 24 25 25 25 26 26 26 26 27 27 27 28 28 28 29 29
+        #  29 30 30 30 31 31 31 31 32 32 32 33 33 33 34 34 34 35 35 35 35 36 36 36
+        #  37 37 37 38 38 38 39 39 39 39 40 40 40 41 41 41 42 42 42 43 43 43 44 44
+        #  44 44 45 45 45 46 46 46 47 47 47 48 48 48 48 49 49 49 50 50 50 51 51 51
+        #  52 52 52 53 53 53 53 54 54 54 55 55 55 56 56 56 57 57 57 57 58 58 58 59
+        #  59 59 60 60 60 61 61 61 62] 꼴
+        # ex2: feature.shape[0]이 62이고, self.num_segments이 11이면
+        # sample_index == [ 0,  6, 12, 18, 24, 31, 37, 43, 49, 55, 62]
+
+        for i in range(len(sample_index) - 1):
+            if sample_index[i] == sample_index[i + 1]:
+                feature_npy[i, :] = feature[sample_index[i], :]
+            else:
+                feature_npy[i, :] = feature[sample_index[i] : sample_index[i + 1], :].mean(0)
+                # ex2의 0과 6 => [0:6] => 0~5 feature 6개 평균
+                # ex1의 0과 1 => [0:1] => 0~0 feature 1개 평균 => 0번 feature 그대로
+
+        # feature.shape[0]이 self.num_segments보다 짧으면 같은 feature 반복
+        # feature.shape[0]이 self.num_segments보다 길면 평균 내서 self.num_segments개로 줄인다
+
+        if self.is_train != 1:
+            gts = np.zeros(self.num_segments).astype(np.float32)
+            # 정상영상은 전부 정답이 0
+
+            return torch.from_numpy(feature_npy[:-1, :]), torch.from_numpy(gts)
+        else:
+            return torch.from_numpy(feature_npy[:-1, :])
+
+
+class NewAbnormalVMAE(Dataset):
+    """
+    is_train = 1 <- train, 0 <- test
+    """
+
+    def __init__(
+        self,
+        is_train=1,
+        model_size="small",
+        root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/UCFCrime/abnormal",
+        label_root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/UCFCrime/test_anomalyv2.txt",
+        num_segments=200,
+        gt_thr=0.25,
+    ):
+        print(f"==>> abnormal 데이터 로딩 시작")
+        super().__init__()
+        self.is_train = is_train
+
+        if self.is_train == 1:
+            self.path = root + "/train/"
+        else:
+            self.path = root + "/val/"
+            self.label_dict = {}
+            with open(label_root, "r", encoding="utf-8") as f:
+                for line in f:
+                    # line.split()은 ['Arrest/Arrest039_x264.mp4', '15836', '[7215, 10335]\n'] 이런 형태
+                    temp = line.split("|")
+                    self.label_dict[temp[0].split("/")[1]] = {
+                        "frame_counts": int(temp[1]),
+                        "frames_gt": temp[2][1:-2].split(","),
+                    }
+
+        self.num_segments = num_segments
+        self.gt_thr = gt_thr
+
+        folder_list = os.listdir(self.path)
+        folder_list.sort()
+
+        self.data_list = []
+
+        for folder_name in folder_list:
+            if folder_name.endswith("_base") and model_size == "small":
+                continue
+            elif not folder_name.endswith("_base") and model_size != "small":
+                continue
+            print(f"==>> {folder_name} 폴더 데이터 로딩 시작")
+
+            folder_path = folder_name + "/"
+            data_list = os.listdir(self.path + "/" + folder_path)
+            data_list.sort()
+            data_list = [folder_path + name for name in data_list]
+            self.data_list.extend(data_list)
+            print(f"==>> {folder_name} 폴더 데이터 로딩 완료")
+
+        print(f"==>> abnormal 데이터 로딩 완료")
+
+    def __len__(self):
+        return len(self.data_list)
+
+    def __getitem__(self, idx):
+        file_name = self.data_list[idx]
+
+        feature = np.load(self.path + "/" + file_name).astype(np.float32)
+        # (원본영상 frame 수 // 16,710)
+
+        feature_npy = np.zeros(self.num_segments, 710).astype(np.float32)
+
+        sample_index = np.linspace(0, feature.shape[0], self.num_segments + 1, dtype=np.uint16)
+        # ex: feature.shape[0]이 62이고, self.num_segments이 11이면
+        # sample_index == [ 0,  6, 12, 18, 24, 31, 37, 43, 49, 55, 62]
+
+        for i in range(len(sample_index) - 1):
+            if sample_index[i] == sample_index[i + 1]:
+                feature_npy[i, :] = feature[sample_index[i], :]
+            else:
+                feature_npy[i, :] = feature[sample_index[i] : sample_index[i + 1], :].mean(0)
+                # ex의 0과 6 => [0:6] => 0~5 feature 6개 평균
+
+        # feature.shape[0]이 self.num_segments보다 짧으면 같은 feature 반복
+        # feature.shape[0]이 self.num_segments보다 길면 평균 내서 self.num_segments개로 줄인다
+
+        if self.is_train != 1:
+            label_info = self.label_dict[file_name.split("/")[1]]
+            frame_counts = label_info["frame_counts"]
+            frames_gt = label_info["frames_gt"]
+
+            # if frame_counts % 16 == 0:
+            #     gts = np.zeros(frame_counts)
+            # else:
+            #     gts = np.zeros(frame_counts + (16 - (frame_counts % 16)))
+            gts = np.zeros(feature.shape[0] * 16)
+
+            # @@@@@@TODO 토막 단위 또는 프레임 단위로 gt 만들기 @@@@@@@@@@@@@@@@@@@@
+
+            gts[int(frames_gt[0]) - 1 : min(int(frames_gt[1]), frame_counts)] = 1
+
+            if len(frames_gt) == 4:
+                gts[int(frames_gt[2]) - 1 : min(int(frames_gt[3]), frame_counts)] = 1
+
+            # # for i in range(12):
+            # #     gts[180 + i] = gts[179]
+            # # @@ feature extraction할때 마지막 조각에서 frame 개수가 16개가 안되면 마지막 frame을 복사해서 추가함
+
+            gts = gts.reshape(-1, 16)
+
+            # assert feature.shape[0] == gts.shape[0]
+
+            # gts = np.max(gts, axis=1)
+            # 16프레임중 1개라도 1이 있으면 True로 취급
+
+            gts = np.mean(gts, axis=1)
+            # 마지막에 self.gt_thr 넘는 값만 True로 취급
+            # 기본값 0.25
+
+            gts_npy = np.zeros(self.num_segments).astype(np.float32)
+
+            for i in range(len(sample_index) - 1):
+                if sample_index[i] == sample_index[i + 1]:
+                    gts_npy[i] = gts[sample_index[i]]
+                else:
+                    gts_npy[i] = gts[sample_index[i] : sample_index[i + 1]].mean(0)
+                    # ex의 0과 6 => [0:6] => 0~5 gts 6개 평균
+
+            gts_npy = gts_npy > self.gt_thr
+            gts_npy = gts_npy.astype(np.float32)
+
+            return torch.from_numpy(feature_npy[:-1, :]), torch.from_numpy(gts_npy)
+        else:
+            return torch.from_numpy(feature_npy[:-1, :])
