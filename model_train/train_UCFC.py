@@ -1015,7 +1015,8 @@ def train_MIL(
 
                     pred_correct = pred_correct == gts_correct
                     corrects = torch.sum(pred_correct).item()
-                    ab_corrects = torch.sum(pred_correct[num_segments:]).item()
+                    ab_corrects = torch.sum(pred_correct[:num_segments]).item()
+                    # @@@@ MIL은 이상 영상 먼저 @@@@
 
                     pred_np = (pred.squeeze()).detach().cpu().numpy()
                     gts_np = (gts.squeeze()).detach().cpu().numpy()
