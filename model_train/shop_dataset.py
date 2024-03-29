@@ -452,6 +452,8 @@ class NewNormalVMAE(Dataset):
         # label_root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal",
         num_segments=200,
     ):
+        set_type = "학습" if is_train == 1 else "검증"
+        print(f"==>> normal {set_type} 데이터 로딩 시작")
         super().__init__()
         self.is_train = is_train
 
@@ -480,6 +482,8 @@ class NewNormalVMAE(Dataset):
             self.data_list.extend(data_list)
             print(f"==>> {folder_name} 폴더 데이터 로딩 완료")
 
+        print(f"==>> normal {set_type} 데이터 로딩 완료")
+
     def __len__(self):
         return len(self.data_list)
 
@@ -489,7 +493,7 @@ class NewNormalVMAE(Dataset):
         feature = np.load(self.path + "/" + file_name).astype(np.float32)
         # (원본영상 frame 수 // 16,710)
 
-        feature_npy = np.zeros(self.num_segments, 710).astype(np.float32)
+        feature_npy = np.zeros((self.num_segments, 710)).astype(np.float32)
 
         sample_index = np.linspace(0, feature.shape[0], self.num_segments + 1, dtype=np.uint16)
         # ex: feature.shape[0]이 62이고, self.num_segments이 200이면
@@ -520,9 +524,9 @@ class NewNormalVMAE(Dataset):
             gts = np.zeros(self.num_segments).astype(np.float32)
             # 정상영상은 전부 정답이 0
 
-            return torch.from_numpy(feature_npy[:-1, :]), torch.from_numpy(gts)
+            return torch.from_numpy(feature_npy), torch.from_numpy(gts)
         else:
-            return torch.from_numpy(feature_npy[:-1, :])
+            return torch.from_numpy(feature_npy)
 
 
 class NewAbnormalVMAE(Dataset):
@@ -539,7 +543,8 @@ class NewAbnormalVMAE(Dataset):
         num_segments=200,
         gt_thr=0.25,
     ):
-        print(f"==>> abnormal 데이터 로딩 시작")
+        set_type = "학습" if is_train == 1 else "검증"
+        print(f"==>> abnormal {set_type} 데이터 로딩 시작")
         super().__init__()
         self.is_train = is_train
 
@@ -552,7 +557,7 @@ class NewAbnormalVMAE(Dataset):
                 for line in f:
                     # line.split()은 ['Arrest/Arrest039_x264.mp4', '15836', '[7215, 10335]\n'] 이런 형태
                     temp = line.split("|")
-                    self.label_dict[temp[0].split("/")[1]] = {
+                    self.label_dict[temp[0].split("/")[1] + ".npy"] = {
                         "frame_counts": int(temp[1]),
                         "frames_gt": temp[2][1:-2].split(","),
                     }
@@ -579,7 +584,7 @@ class NewAbnormalVMAE(Dataset):
             self.data_list.extend(data_list)
             print(f"==>> {folder_name} 폴더 데이터 로딩 완료")
 
-        print(f"==>> abnormal 데이터 로딩 완료")
+        print(f"==>> abnormal {set_type} 데이터 로딩 완료")
 
     def __len__(self):
         return len(self.data_list)
@@ -590,7 +595,7 @@ class NewAbnormalVMAE(Dataset):
         feature = np.load(self.path + "/" + file_name).astype(np.float32)
         # (원본영상 frame 수 // 16,710)
 
-        feature_npy = np.zeros(self.num_segments, 710).astype(np.float32)
+        feature_npy = np.zeros((self.num_segments, 710)).astype(np.float32)
 
         sample_index = np.linspace(0, feature.shape[0], self.num_segments + 1, dtype=np.uint16)
         # ex: feature.shape[0]이 62이고, self.num_segments이 11이면
@@ -651,6 +656,6 @@ class NewAbnormalVMAE(Dataset):
             gts_npy = gts_npy > self.gt_thr
             gts_npy = gts_npy.astype(np.float32)
 
-            return torch.from_numpy(feature_npy[:-1, :]), torch.from_numpy(gts_npy)
+            return torch.from_numpy(feature_npy), torch.from_numpy(gts_npy)
         else:
-            return torch.from_numpy(feature_npy[:-1, :])
+            return torch.from_numpy(feature_npy)
