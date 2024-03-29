@@ -68,6 +68,8 @@ def parse_args():
 
     parser.add_argument("--len_feature", type=int, default=710)
     # npy파일 feature length
+    parser.add_argument("--use_l2norm", action="store_true")
+    # npy feature l2 normalization 여부
     parser.add_argument("--num_segments", type=int, default=200)
     # 영상 segment 개수
 
@@ -154,6 +156,7 @@ def train_BNWVAD(
     gt_thr,
     dist_thr,
     len_feature,
+    use_l2norm,
     num_segments,
     ratio_sample,
     ratio_batch,
@@ -188,11 +191,19 @@ def train_BNWVAD(
 
     # 데이터셋
     normal_train_dataset = NewNormalVMAE(
-        is_train=1, model_size=model_size, root=normal_root_dir, num_segments=num_segments
+        is_train=1,
+        model_size=model_size,
+        root=normal_root_dir,
+        num_segments=num_segments,
+        l2_norm=use_l2norm,
     )
     # 800개
     normal_valid_dataset = NewNormalVMAE(
-        is_train=0, model_size=model_size, root=normal_root_dir, num_segments=num_segments
+        is_train=0,
+        model_size=model_size,
+        root=normal_root_dir,
+        num_segments=num_segments,
+        l2_norm=use_l2norm,
     )
     # 149개
 
@@ -217,6 +228,7 @@ def train_BNWVAD(
         root=abnormal_root_dir,
         label_root=label_dir,
         num_segments=num_segments,
+        l2_norm=use_l2norm,
     )
     # 809개
     abnormal_valid_dataset = NewAbnormalVMAE(
@@ -226,6 +238,7 @@ def train_BNWVAD(
         label_root=label_dir,
         num_segments=num_segments,
         gt_thr=gt_thr,
+        l2_norm=use_l2norm,
     )
     # 140개
 
@@ -707,6 +720,7 @@ def train_MIL(
     gt_thr,
     dist_thr,
     len_feature,
+    use_l2norm,
     num_segments,
     ratio_sample,
     ratio_batch,
@@ -741,11 +755,19 @@ def train_MIL(
 
     # 데이터셋
     normal_train_dataset = NewNormalVMAE(
-        is_train=1, model_size=model_size, root=normal_root_dir, num_segments=num_segments
+        is_train=1,
+        model_size=model_size,
+        root=normal_root_dir,
+        num_segments=num_segments,
+        l2_norm=use_l2norm,
     )
     # 800개
     normal_valid_dataset = NewNormalVMAE(
-        is_train=0, model_size=model_size, root=normal_root_dir, num_segments=num_segments
+        is_train=0,
+        model_size=model_size,
+        root=normal_root_dir,
+        num_segments=num_segments,
+        l2_norm=use_l2norm,
     )
     # 149개
 
@@ -770,6 +792,7 @@ def train_MIL(
         root=abnormal_root_dir,
         label_root=label_dir,
         num_segments=num_segments,
+        l2_norm=use_l2norm,
     )
     # 809개
     abnormal_valid_dataset = NewAbnormalVMAE(
@@ -779,6 +802,7 @@ def train_MIL(
         label_root=label_dir,
         num_segments=num_segments,
         gt_thr=gt_thr,
+        l2_norm=use_l2norm,
     )
     # 140개
 

@@ -4,6 +4,7 @@ import os.path as osp
 from torch.utils.data import Dataset
 
 # from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import normalize
 
 import pandas as pd
 import numpy as np
@@ -451,11 +452,13 @@ class NewNormalVMAE(Dataset):
         root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/UCFCrime/normal",
         # label_root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/json/abnormal",
         num_segments=200,
+        l2_norm=False,
     ):
         set_type = "학습" if is_train == 1 else "검증"
         print(f"==>> normal {set_type} 데이터 로딩 시작")
         super().__init__()
         self.is_train = is_train
+        self.l2_norm = l2_norm
 
         if self.is_train == 1:
             self.path = root + "/train/"
@@ -492,6 +495,9 @@ class NewNormalVMAE(Dataset):
 
         feature = np.load(self.path + "/" + file_name).astype(np.float32)
         # (원본영상 frame 수 // 16,710)
+
+        if self.l2_norm:
+            feature = normalize(feature, norm="l2")
 
         feature_npy = np.zeros((self.num_segments, 710)).astype(np.float32)
 
@@ -542,11 +548,13 @@ class NewAbnormalVMAE(Dataset):
         label_root="/data/ephemeral/home/level2-3-cv-finalproject-cv-06/datapreprocess/npy/UCFCrime/test_anomalyv2.txt",
         num_segments=200,
         gt_thr=0.25,
+        l2_norm=False,
     ):
         set_type = "학습" if is_train == 1 else "검증"
         print(f"==>> abnormal {set_type} 데이터 로딩 시작")
         super().__init__()
         self.is_train = is_train
+        self.l2_norm = l2_norm
 
         if self.is_train == 1:
             self.path = root + "/train/"
@@ -594,6 +602,9 @@ class NewAbnormalVMAE(Dataset):
 
         feature = np.load(self.path + "/" + file_name).astype(np.float32)
         # (원본영상 frame 수 // 16,710)
+
+        if self.l2_norm:
+            feature = normalize(feature, norm="l2")
 
         feature_npy = np.zeros((self.num_segments, 710)).astype(np.float32)
 
