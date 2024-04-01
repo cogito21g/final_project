@@ -10,7 +10,7 @@ cv-06 혁신비전테크(IVT)
 
 ## 💁🏻‍♂️ 팀 구성 및 역할
 | 이 름 | 역 할 |
-| --- | --- |
+| ----- | ----- |
 | 김시웅 | 데이터셋 구성 및 코드 작성, 데이터 전처리(백본 feature 추출), VMAE 계열 모델 구현 |
 | 박정민 | 데이터 탐색, FastAPI 기반 백엔드 기능 구현, 배포 |
 | 백광현 | 프로젝트 기획 / 서비스 아키텍처 설계, API 구현 및 실시간 개발, LSTM-AE 모델링 / 학습 및 추론, 웹 서버 / 모델서버 분리, 배포 |
@@ -27,12 +27,11 @@ cv-06 혁신비전테크(IVT)
 💡 무인 점포가 증가하면서 **범죄 발생률도 같이 증가**하고, **심야, 주말** 등 관리가 소홀할 때 많은 범죄가 발생
 
 </aside>
-
-![Untitled](./asset/Untitled%201.png)
-
-![Untitled](./asset/Untitled%202.png)
-
-![Untitled](./asset/Untitled%203.png)
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%201.png" alt="이미지1" style="width: 33%;">
+    <img src="./asset/Untitled%202.png" alt="이미지2" style="width: 33%;">
+    <img src="./asset/Untitled%203.png" alt="이미지2" style="width: 33%;">
+</div>
 
 ⇒ CCTV 를 활용하여 이상행동을 자동으로 탐지하고 증거확보 및 실시간 알람을 준다면 이 문제를 해소할 수 있지 않을까?
 
@@ -75,13 +74,16 @@ cv-06 혁신비전테크(IVT)
     - 구매 행동 : 매장 이동, 구매, 반품, 비교 등
     - 이상 행동 : 파손, 방화, 흡연, 절도, 폭행 등
 
-![Untitled](./asset/Untitled%204.png)
-
-![Untitled](./asset/Untitled%205.png)
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%204.png" alt="이미지1" style="width: 50%; margin: 0 10px;">
+    <img src="./asset/Untitled%205.png" alt="이미지2" style="width: 50%; margin: 0 10px;">
+</div>
 
 ## 🔨 Data Preprocessing
 
-![Untitled](./asset/Untitled%206.png)
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%206.png" alt="이미지1" style="width: 70%; margin: 0 10px;">
+</div>
 
 - 비디오 데이터는 이미지 데이터에 비해 매우 큰 용량
     
@@ -221,9 +223,10 @@ cv-06 혁신비전테크(IVT)
     - 30 FPS 이상의 실시간 탐지를 위해
     **1 프레임 당 처리 속도(FPS)**로 속도 평가
 
-![TP, FP 에 따른 ROC Curve](./asset/Untitled%2011.png)
-
-TP, FP 에 따른 ROC Curve
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%2011.png" alt="이미지1" style="width: 60%; margin: 0 10px;">
+</div>
+<p>TP, FP 에 따른 ROC Curve</p>
 
 <aside>
 💡 실험 결과
@@ -232,14 +235,16 @@ TP, FP 에 따른 ROC Curve
 
 - 실험 기록 및 관리는 WandB를 사용하였으며, ROC AUC, FPS 외에도 정확도, 정상 / 이상 영상 예측 스코어 평균, 예측 스코어 최대값 평균 등 다양한 결과 값들을 기록
 
-![Untitled](./asset/Untitled%2012.png)
-
-![Untitled](./asset/Untitled%2013.png)
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%2012.png" alt="이미지1" style="width: 50%; margin: 0 10px;">
+    <img src="./asset/Untitled%2013.png" alt="이미지2" style="width: 50%; margin: 0 10px;">
+</div>
 
 - 최종 결과
-    
-    ![Untitled](./asset/94d6ffb9-0567-43c0-b90a-aa4030a14655.png)
-    
+    <div style="display: flex; justify-content: center;">
+        <img src="./asset/94d6ffb9-0567-43c0-b90a-aa4030a14655.png" alt="이미지1" style="width: 80%; margin: 0 10px;">
+    </div>
+
     - ROC AUC 기준 가장 좋은 성능을 보인 VMAEv2+FE+MIL 구성은 실제 이상 행동을 배우기보다는 데이터셋의 이상행동 발생 프레임 위치의 패턴만을 배운 것을 발견하여 **최종 모델**로는 **VMAEv2+MIL** 구조를 채용
 
 ## 🌏 Service
@@ -275,13 +280,16 @@ TP, FP 에 따른 ROC Curve
     - **실시간 추론 서버**와 **녹화영상 추론 서버**로 나누어 운영.
     - 추론 시 이상행동 프레임을 AWS S3 에 저장하고, DB frame 테이블을 갱신
 
-![서비스 아키텍처](./asset/Untitled%2014.png)
-
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%2014.png" alt="이미지1" style="width: 70%; margin: 0 10px;">
+</div>
 서비스 아키텍처
 
----
+<br>
 
-![서비스 파이프라인](./asset/Untitled%2015.png)
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%2015.png" alt="이미지1" style="width: 80%; margin: 0 10px;">
+</div>
 
 서비스 파이프라인
 
@@ -304,7 +312,9 @@ TP, FP 에 따른 ROC Curve
 1. 이상행동으로 판단된 **장면들과 타임스탬프를 저장**하고, 해당 시간대로 이동해 쉽게 확인할 수 있도록 제공
 2. 특정 장면을 자료로 사용하기 위해 **화질 개선 혹은 몽타주 생성** 등의 기능을 추가할 수 있음
 
-![Untitled](./asset/Untitled%2016.png)
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%2016.png" alt="이미지1" style="width: 80%; margin: 0 10px;">
+</div>
 
 <aside>
 💯 실시간 분석 & 알람
@@ -314,7 +324,9 @@ TP, FP 에 따른 ROC Curve
 1. **웹캠**, **동영상 스트리밍** 또는 **외부 CCTV** 와 연결하여 **실시간 이상행동 분석** 실시
 2. 이상 행동이 일정 시간 지속되면 가입된 이메일로 **발생 시간** 전송
 
-![Untitled](./asset/Untitled%2017.png)
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%2017.png" alt="이미지1" style="width: 80%; margin: 0 10px;">
+</div>
 
 <aside>
 💯 앨범
@@ -323,4 +335,6 @@ TP, FP 에 따른 ROC Curve
 
 1. 분석 단위로 앨범 기능을 제공하여 관리에 용이하고 결과를 재사용할 수 있다.
 
-![Untitled](./asset/Untitled%2018.png)
+<div style="display: flex; justify-content: center;">
+    <img src="./asset/Untitled%2018.png" alt="이미지1" style="width: 80%; margin: 0 10px;">
+</div>
