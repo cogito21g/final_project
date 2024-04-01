@@ -21,7 +21,10 @@ from io import BytesIO
 
 import torch
 
-sys.path.append('/data/ephemeral/home/level2-3-cv-finalproject-cv-06/model')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+
+sys.path.append(os.path.join(parent_dir, "model"))
 from lstmae.lstm_ae import LSTMAutoEncoder
 
 class AnomalyDetector:

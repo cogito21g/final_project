@@ -25,7 +25,10 @@ import albumentations as A
 
 import sys
 
-sys.path.append('/data/ephemeral/home/level2-3-cv-finalproject-cv-06/model')
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+
+sys.path.append(os.path.join(parent_dir, "model"))
 import vmae
 
 # @@ timm은 0.4.12 버전 사용 필수

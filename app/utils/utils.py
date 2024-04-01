@@ -17,22 +17,8 @@ s3 = boto3.client("s3",
                   aws_access_key_id=settings.AWS_ACCESS_KEY,
                   aws_secret_access_key=settings.AWS_SECRET_KEY)
 
-# background 에서 모델 실행
-def run_model(video_url, upload_file, info, s3, settings, db):
-    
-    s3_upload_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="video 를 s3 저장소 업로드에 실패했습니다."
-    )
-    try:
-        s3.upload_fileobj(
-            upload_file.file,
-            settings.BUCKET,
-            video_url,
-            ExtraArgs={'ContentType': 'video/mp4'}
-        )
-    except:
-        raise s3_upload_exception
+
+def run_model(video_url, info, settings, db, s3=s3):
 
     model = AnomalyDetector(video_file=video_url,
                             info=info,

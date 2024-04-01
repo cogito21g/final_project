@@ -82,6 +82,33 @@ async def realtime_post(request: Request,
     return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
 
+@router.get("/stream")
+async def get_stream(request: Request,
+                     user_id: int = Query(...),
+                     upload_id: int = Query(...),
+                     db: Session = Depends(get_db)):
+    
+    user = get_current_user(request)
+        
+    video = crud.get_video(db=db, upload_id=upload_id)
+    uploaded = crud.get_upload(db=db, upload_id=video.upload_id)
+    
+    video_info = {
+        "user_id": user_id,
+        "upload_id": upload_id,
+        "date": uploaded.date.strftime('%Y-%m-%d %H:%M:%S'),
+        "upload_name": uploaded.name,
+        "thr": uploaded.thr,
+        "video_id": video.video_id,
+        "video_url": video.video_url,
+        "is_realtime": True,
+        "model_server_ip": settings.STREAM_MODEL_SERVER_IP
+    }
+    
+    # video_info = json.dumps(video_info)
+    
+    return templates.TemplateResponse("stream.html", {'request': request, 'token': user.email, 'video_info': video_info})
+
 # 메일을 보내야하는지 판단하는 함수
 async def check_and_send_email(db, video_id, user_id, last_point, smtp):
     global last_emailed_time
