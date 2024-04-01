@@ -20,19 +20,21 @@ app.mount("/src", StaticFiles(directory=static_dir), name="src")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
- 
+
+
 @app.get("/")
-async def main_get(request:Request):
-	user = get_current_user(request)
-	if user:
-		return templates.TemplateResponse("main.html", {'request': request, 'token': user.email})
-	else:	
-		return templates.TemplateResponse("main.html", {'request': request, 'token': None})
+async def main_get(request: Request):
+    user = get_current_user(request)
+    if user:
+        return templates.TemplateResponse("main.html", {"request": request, "token": user.email})
+    else:
+        return templates.TemplateResponse("main.html", {"request": request, "token": None})
+
 
 @app.post("/")
 async def main_post(request: Request):

@@ -14,6 +14,7 @@ from .modeling_pretrain import (
 )
 
 from .classifier import MILClassifier
+from .classifier import WSAD
 
 __all__ = [
     "pretrain_videomae_small_patch16_224",
