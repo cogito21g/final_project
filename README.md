@@ -27,11 +27,11 @@ cv-06 혁신비전테크(IVT)
 💡 무인 점포가 증가하면서 **범죄 발생률도 같이 증가**하고, **심야, 주말** 등 관리가 소홀할 때 많은 범죄가 발생
 
 </aside>
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%201.png" alt="이미지1" style="max-width: 33%;">
-    <img src="./asset/Untitled%202.png" alt="이미지2" style="max-width: 33%;">
-    <img src="./asset/Untitled%203.png" alt="이미지2" style="max-width: 33%;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%201.png" width="30%" height="30%">
+    <img src="./asset/Untitled%202.png" width="30%" height="30%">
+    <img src="./asset/Untitled%203.png" width="30%" height="30%">
+</p>
 
 ⇒ CCTV 를 활용하여 이상행동을 자동으로 탐지하고 증거확보 및 실시간 알람을 준다면 이 문제를 해소할 수 있지 않을까?
 
@@ -74,16 +74,16 @@ cv-06 혁신비전테크(IVT)
     - 구매 행동 : 매장 이동, 구매, 반품, 비교 등
     - 이상 행동 : 파손, 방화, 흡연, 절도, 폭행 등
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%204.png" alt="이미지1" style="max-width: 50%; margin: 0 10px;">
-    <img src="./asset/Untitled%205.png" alt="이미지2" style="max-width: 50%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%204.png" width="45%" height="45%">
+    <img src="./asset/Untitled%205.png" width="45%" height="45%">
+</p>
 
 ## 🔨 Data Preprocessing
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%206.png" alt="이미지1" style="max-width: 70%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%206.png" width="70%" height="70%">
+</p>
 
 - 비디오 데이터는 이미지 데이터에 비해 매우 큰 용량
     
@@ -132,9 +132,9 @@ cv-06 혁신비전테크(IVT)
 
 1️⃣ **YOLO v8 + [LSTM autoencoder](https://github.com/surya2003-real/anomaly-detection-and-object-tracking?tab=readme-ov-file)**
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%207.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%207.png" width="80%" height="80%">
+</p>
 
 - 데이터에서 제공하는 **포즈 스켈레톤** 정보를 활용하고자 함
     - Feature 추출 : **YOLO v8 Pose**
@@ -153,9 +153,9 @@ cv-06 혁신비전테크(IVT)
 
 2️⃣ **YOLO v8 + [MGFN](https://arxiv.org/abs/2211.15098)**
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%208.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%208.png" width="80%" height="80%">
+</p>
 
 - LSTM의 한계를 극복하고자
 **MGFN**(Magnitude-Contrastive-Glance-and-Focus Network)을 활용
@@ -175,9 +175,9 @@ cv-06 혁신비전테크(IVT)
 
 3️⃣ **Video MAE v2 + [Deep MIL ranking model](https://arxiv.org/abs/1801.04264)**
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%209.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%209.png" width="80%" height="80%">
+</p>
 
 - Optical Flow 사용하지 않는 **Video MAE v2** 선정
     - Feature 추출 : **Video MAE v2**
@@ -196,9 +196,9 @@ cv-06 혁신비전테크(IVT)
 
 4️⃣ **Video MAE v2 + [BN-WVAD](https://arxiv.org/abs/2311.15367)**
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%2010.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%2010.png" width="80%" height="80%">
+</p>
 
 - UCF-Crime 데이터 셋 기준 SOTA 성능의 **BN-WVAD** 선정
     - ROC AUC = 0.8724
@@ -231,9 +231,9 @@ cv-06 혁신비전테크(IVT)
     - 30 FPS 이상의 실시간 탐지를 위해
     **1 프레임 당 처리 속도(FPS)**로 속도 평가
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%2011.png" alt="이미지1" style="max-width: 60%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%2011.png" width="60%" height="60%">
+</p>
 <p>TP, FP 에 따른 ROC Curve</p>
 
 <aside>
@@ -243,15 +243,15 @@ cv-06 혁신비전테크(IVT)
 
 - 실험 기록 및 관리는 WandB를 사용하였으며, ROC AUC, FPS 외에도 정확도, 정상 / 이상 영상 예측 스코어 평균, 예측 스코어 최대값 평균 등 다양한 결과 값들을 기록
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%2012.png" alt="이미지1" style="max-width: 50%; margin: 0 10px;">
-    <img src="./asset/Untitled%2013.png" alt="이미지2" style="max-width: 50%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%2012.png" width="45%" height="45%">
+    <img src="./asset/Untitled%2013.png" width="45%" height="45%">
+</p>
 
 - 최종 결과
-    <div style="display: flex; justify-content: center;">
-        <img src="./asset/94d6ffb9-0567-43c0-b90a-aa4030a14655.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-    </div>
+    <p align="center">
+        <img src="./asset/94d6ffb9-0567-43c0-b90a-aa4030a14655.png" width="80%" height="80%">
+    </p>
 
     - ROC AUC 기준 가장 좋은 성능을 보인 VMAEv2+FE+MIL 구성은 실제 이상 행동을 배우기보다는 데이터셋의 이상행동 발생 프레임 위치의 패턴만을 배운 것을 발견하여 **최종 모델**로는 **VMAEv2+MIL** 구조를 채용
 
@@ -288,16 +288,16 @@ cv-06 혁신비전테크(IVT)
     - **실시간 추론 서버**와 **녹화영상 추론 서버**로 나누어 운영.
     - 추론 시 이상행동 프레임을 AWS S3 에 저장하고, DB frame 테이블을 갱신
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%2014.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%2014.png" width="80%" height="80%">
+</p>
 서비스 아키텍처
 
 <br>
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%2015.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%2015.png" width="90%" height="90%">
+</p>
 
 서비스 파이프라인
 
@@ -320,9 +320,9 @@ cv-06 혁신비전테크(IVT)
 1. 이상행동으로 판단된 **장면들과 타임스탬프를 저장**하고, 해당 시간대로 이동해 쉽게 확인할 수 있도록 제공
 2. 특정 장면을 자료로 사용하기 위해 **화질 개선 혹은 몽타주 생성** 등의 기능을 추가할 수 있음
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%2016.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%2016.png" width="80%" height="80%">
+</p>
 
 <aside>
 💯 실시간 분석 & 알람
@@ -332,9 +332,9 @@ cv-06 혁신비전테크(IVT)
 1. **웹캠**, **동영상 스트리밍** 또는 **외부 CCTV** 와 연결하여 **실시간 이상행동 분석** 실시
 2. 이상 행동이 일정 시간 지속되면 가입된 이메일로 **발생 시간** 전송
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%2017.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%2017.png" width="80%" height="80%">
+</p>
 
 <aside>
 💯 앨범
@@ -343,6 +343,6 @@ cv-06 혁신비전테크(IVT)
 
 1. 분석 단위로 앨범 기능을 제공하여 관리에 용이하고 결과를 재사용할 수 있다.
 
-<div style="display: flex; justify-content: center;">
-    <img src="./asset/Untitled%2018.png" alt="이미지1" style="max-width: 80%; margin: 0 10px;">
-</div>
+<p align="center">
+    <img src="./asset/Untitled%2018.png" width="80%" height="80%">
+</p>
