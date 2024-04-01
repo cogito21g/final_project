@@ -1,5 +1,5 @@
-# 실시간 무인매장 이상행동 탐지 Wrap-up Report
-cv-06 혁신비전테크(IVT)
+# 실시간 무인매장 이상행동 탐지
+cv-06 혁신비전테크(IVT) 최종 프로젝트
 
 ## 🎞️ 프로젝트 개요
 
@@ -19,13 +19,15 @@ cv-06 혁신비전테크(IVT)
 | 최수진 | 모델링, 데이터 전처리, YOLO 계열 모델 구현 |
 - 개발 타임라인
 
-![Untitled](./asset/timeline.png)
+<p align="center">
+    <img src="./asset/timeline.png" width="90%" height="90%">
+</p>
 
 ## 📍 문제 정의
 
 <aside>
-💡 무인 점포가 증가하면서 **범죄 발생률도 같이 증가**하고, **심야, 주말** 등 관리가 소홀할 때 많은 범죄가 발생
-
+💡 무인 점포가 증가하면서 **범죄 발생률도 같이 증가**하고, **심야, 주말** 등 관리가 소홀할 때 많은 범죄가 발생<br>
+<br>
 </aside>
 <p align="center">
     <img src="./asset/Untitled%201.png" width="30%" height="30%">
@@ -232,7 +234,7 @@ cv-06 혁신비전테크(IVT)
     **1 프레임 당 처리 속도(FPS)**로 속도 평가
 
 <p align="center">
-    <img src="./asset/Untitled%2011.png" width="60%" height="60%">
+    <img src="./asset/Untitled%2011.jpg" width="60%" height="60%">
 </p>
 <p>TP, FP 에 따른 ROC Curve</p>
 
@@ -288,18 +290,17 @@ cv-06 혁신비전테크(IVT)
     - **실시간 추론 서버**와 **녹화영상 추론 서버**로 나누어 운영.
     - 추론 시 이상행동 프레임을 AWS S3 에 저장하고, DB frame 테이블을 갱신
 
-<p align="center">
-    <img src="./asset/Untitled%2014.png" width="80%" height="80%">
-</p>
+<br>
 서비스 아키텍처
+<p align="center">
+    <img src="./asset/Untitled%2014.jpg" width="80%" height="80%">
+</p>
 
 <br>
-
+서비스 파이프라인
 <p align="center">
     <img src="./asset/Untitled%2015.png" width="90%" height="90%">
 </p>
-
-서비스 파이프라인
 
 ## 🛎️ Product Serving
 
