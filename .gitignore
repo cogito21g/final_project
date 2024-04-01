@@ -11,6 +11,41 @@ ipython_config.py
 
 # Remove previous ipynb_checkpoints
 #   git rm -r .ipynb_checkpoints/
+dataset/
+pts/
+wandb/
+*.ipynb
+*.png
+*.pt
+datapreprocess/code_prac.ipynb
+datapreprocess/rt_code_test.ipynb
+datapreprocess/csv/abnormal/train/*.csv
+datapreprocess/csv/abnormal/val/*.csv
+datapreprocess/csv/normal/train/*.csv
+datapreprocess/csv/normal/val/*.csv
+datapreprocess/json/abnormal/train/
+datapreprocess/json/abnormal/val/
+datapreprocess/json/abnormal/TS_03.이상행동_14.교통약자_train/
+datapreprocess/json/abnormal/TS_03.이상행동_14.교통약자_val/
+datapreprocess/json/normal/train/
+datapreprocess/json/normal/val/
+datapreprocess/*.csv
+datapreprocess/*.pt
+datapreprocess/*.pth
+datapreprocess/npy
+datapreprocess/nohup.out
+model_train/code_prac.ipynb
+model_train/model.h5
+model_train/pytorch_model.pth
+model_train/nohup.out
+model_train/*.ipynb
+model_train/wandb
+app/testitems/
+pths/
+app/models/pts
+app/models/yolov8n-pose.pt
+app/yolov8n-pose.pt
+.netrc
 
 ### macOS ###
 # General
@@ -271,4 +306,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+<<<<<<< HEAD
+# End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,macos,windows,jupyternotebooks,virtualenv,python
+=======
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,macos,windows,jupyternotebooks,virtualenv,python
