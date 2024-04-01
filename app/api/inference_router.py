@@ -83,7 +83,7 @@ async def check_and_send_email(db, video_id, user_id, last_point, smtp):
             crud.send_email(db, frame_timestamps[-6], frame_timestamps[-2], user_id, smtp)
             last_emailed_time = last
 
-
+# 과연 웹 서버와 실시간을 분리하는 것이 더 빠른가?
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket,
                              db: Session = Depends(get_db)):
