@@ -1,39 +1,35 @@
-from collections import defaultdict
-import cv2
-import numpy as np
-import pandas as pd
-from ultralytics import YOLO
-import torch
-from sklearn.preprocessing import MinMaxScaler
-
-from fastapi import HTTPException
-from starlette import status
-from database import crud
-from database import schemas
-
-import os
-import uuid
 import json
+import os
+import sys
+import uuid
+from collections import defaultdict
 from datetime import datetime, time, timedelta
-import matplotlib.pyplot as plt
 from io import BytesIO
 
+import albumentations as A
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
-
-import albumentations as A
-
-import sys
+from database import crud, schemas
+from fastapi import HTTPException
+from sklearn.preprocessing import MinMaxScaler
+from starlette import status
+from ultralytics import YOLO
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 
 sys.path.append(os.path.join(parent_dir, "model"))
+from copy import deepcopy
+
 import vmae
 
 # @@ timm은 0.4.12 버전 사용 필수
 from timm.models import create_model
-from copy import deepcopy
+
 
 class RT_AnomalyDetector:
     def __init__(self, info, s3_client, settings, db, websocket):
@@ -68,7 +64,8 @@ class RT_AnomalyDetector:
 
     async def upload_frame_s3(self, s3, frame):
         s3_upload_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Frame 을 s3 저장소 업로드에 실패했습니다."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Frame 을 s3 저장소 업로드에 실패했습니다.",
         )
         frame_name = uuid.uuid1()
         frame_url = self.frame_url_base + f"{frame_name}" + ".png"
@@ -103,14 +100,18 @@ class RT_AnomalyDetector:
             graph = image_file.read()
 
         s3_upload_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="score Graph 를 s3 저장소 업로드에 실패했습니다."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="score Graph 를 s3 저장소 업로드에 실패했습니다.",
         )
         score_graph_name = "score_graph.png"
         score_graph_url = self.frame_url_base + score_graph_name
 
         try:
             self.s3.upload_fileobj(
-                BytesIO(graph), self.settings.BUCKET, score_graph_url, ExtraArgs={"ContentType": "image/png"}
+                BytesIO(graph),
+                self.settings.BUCKET,
+                score_graph_url,
+                ExtraArgs={"ContentType": "image/png"},
             )
         except:
             raise s3_upload_exception
@@ -279,9 +280,13 @@ class RT_AnomalyDetector:
                 ):
                     if s_list[f_step // 16] > threshold:
                         # if True:
-                        anomaly_text = f"Anomaly detected, score: {s_list[f_step // 16]}"
+                        anomaly_text = (
+                            f"Anomaly detected, score: {s_list[f_step // 16]}"
+                        )
 
-                        if results_i[0].boxes is not None:  # Check if there are results and boxes
+                        if (
+                            results_i[0].boxes is not None
+                        ):  # Check if there are results and boxes
 
                             # Get the boxes
                             boxes = results_i[0].boxes.xywh.cpu()
@@ -295,18 +300,35 @@ class RT_AnomalyDetector:
                                 # anomaly_text = ""  # Initialize the anomaly text
 
                                 # 한 프레임에서 검출된 사람만큼 돌아가는 반복문. 2명이면 각 id 별로 아래 연산들이 진행됨.
-                                for i, box in zip(range(0, len(track_ids)), results_i[0].boxes.xywhn.cpu()):
+                                for i, box in zip(
+                                    range(0, len(track_ids)),
+                                    results_i[0].boxes.xywhn.cpu(),
+                                ):
 
                                     x, y, w, h = box
-                                    keypoints = results_i[0].keypoints.xyn[i].cpu().numpy().flatten().tolist()
+                                    keypoints = (
+                                        results_i[0]
+                                        .keypoints.xyn[i]
+                                        .cpu()
+                                        .numpy()
+                                        .flatten()
+                                        .tolist()
+                                    )
 
-                                    xywhk = np.array([float(x), float(y), float(w), float(h)] + keypoints)
+                                    xywhk = np.array(
+                                        [float(x), float(y), float(w), float(h)]
+                                        + keypoints
+                                    )
 
                                     xywhk = list(map(lambda x: str(round(x, 4)), xywhk))
 
-                                    temp_for_db_i["bbox"][f"id {i}"] = " ".join(xywhk[:4])
+                                    temp_for_db_i["bbox"][f"id {i}"] = " ".join(
+                                        xywhk[:4]
+                                    )
 
-                                    temp_for_db_i["keypoints"][f"id {i}"] = " ".join(xywhk[4:])
+                                    temp_for_db_i["keypoints"][f"id {i}"] = " ".join(
+                                        xywhk[4:]
+                                    )
 
                             else:
                                 # If 'int' attribute doesn't exist (no detections), set track_ids to an empty list

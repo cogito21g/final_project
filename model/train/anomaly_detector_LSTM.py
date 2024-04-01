@@ -1,20 +1,26 @@
+import argparse
 from collections import defaultdict
+
 import cv2
 import numpy as np
 import pandas as pd
-from ultralytics import YOLO
 import torch
 from sklearn.preprocessing import MinMaxScaler
-import argparse
+from ultralytics import YOLO
 
 # Create an argument parser
 parser = argparse.ArgumentParser()
 
 # Define command-line arguments
 parser.add_argument(
-    "--video_path", type=str, default="../videos/anomaly_1.mp4", help="Path to the video file"
+    "--video_path",
+    type=str,
+    default="../videos/anomaly_1.mp4",
+    help="Path to the video file",
 )
-parser.add_argument("--threshold", type=float, default=0.02, help="Anomaly detection threshold")
+parser.add_argument(
+    "--threshold", type=float, default=0.02, help="Anomaly detection threshold"
+)
 
 # Parse the command-line arguments
 args = parser.parse_args()
@@ -25,7 +31,9 @@ def display_text(frame, text, position):
     font_scale = 1
     font_color = (0, 255, 0)  # Green color
     font_thickness = 2
-    cv2.putText(frame, text, position, font, font_scale, font_color, font_thickness, cv2.LINE_AA)
+    cv2.putText(
+        frame, text, position, font, font_scale, font_color, font_thickness, cv2.LINE_AA
+    )
 
 
 # Load the YOLOv8 model
@@ -89,15 +97,24 @@ while cap.isOpened():
 
                 # Loop through the detections and add data to the DataFrame
                 anomaly_text = ""  # Initialize the anomaly text
-                for i, box in zip(range(0, len(track_ids)), results[0].boxes.xywhn.cpu()):
+                for i, box in zip(
+                    range(0, len(track_ids)), results[0].boxes.xywhn.cpu()
+                ):
                     x, y, w, h = box
-                    keypoints = results[0].keypoints.xyn[i].cpu().numpy().flatten().tolist()
+                    keypoints = (
+                        results[0].keypoints.xyn[i].cpu().numpy().flatten().tolist()
+                    )
 
                     # Create a dictionary with named columns for keypoints
-                    keypoints_dict = {f"Keypoint_{j}": float(val) for j, val in enumerate(keypoints, 0)}
+                    keypoints_dict = {
+                        f"Keypoint_{j}": float(val)
+                        for j, val in enumerate(keypoints, 0)
+                    }
 
                     # Append the keypoints to the corresponding ID's buffer
-                    id_buffers[track_ids[i]].append([float(x), float(y), float(w), float(h)] + keypoints)
+                    id_buffers[track_ids[i]].append(
+                        [float(x), float(y), float(w), float(h)] + keypoints
+                    )
 
                     # If the buffer size reaches the threshold (e.g., 20 data points), perform anomaly detection
                     if len(id_buffers[track_ids[i]]) >= 20:
@@ -109,16 +126,22 @@ while cap.isOpened():
                         buffer_scaled = scaler.fit_transform(buffer_array)
 
                         # Create sequences for prediction
-                        x_pred = buffer_scaled[-sequence_length:].reshape(1, sequence_length, n_features)
+                        x_pred = buffer_scaled[-sequence_length:].reshape(
+                            1, sequence_length, n_features
+                        )
 
                         # Predict the next values using the autoencoder model
                         x_pred = autoencoder_model.predict(x_pred)
 
                         # Inverse transform the predicted data to the original scale
-                        x_pred_original = scaler.inverse_transform(x_pred.reshape(-1, n_features))
+                        x_pred_original = scaler.inverse_transform(
+                            x_pred.reshape(-1, n_features)
+                        )
 
                         # Calculate the MSE between the predicted and actual values
-                        mse = calculate_mse(buffer_array[-prediction_time:], x_pred_original)
+                        mse = calculate_mse(
+                            buffer_array[-prediction_time:], x_pred_original
+                        )
                         print(mse)
                         net_mse = mse + net_mse
                         avg_mse = net_mse / frame_count
@@ -139,7 +162,9 @@ while cap.isOpened():
 
             # Visualize the results on the frame
             annotated_frame = results[0].plot()
-            display_text(annotated_frame, anomaly_text, (10, 30))  # Display the anomaly text
+            display_text(
+                annotated_frame, anomaly_text, (10, 30)
+            )  # Display the anomaly text
             # Plot the tracks
             for box, track_id in zip(boxes, track_ids):
                 x, y, w, h = box
@@ -150,7 +175,13 @@ while cap.isOpened():
 
                 # Draw the tracking lines
                 points = np.hstack(track).astype(np.int32).reshape((-1, 1, 2))
-                cv2.polylines(annotated_frame, [points], isClosed=False, color=(230, 230, 230), thickness=10)
+                cv2.polylines(
+                    annotated_frame,
+                    [points],
+                    isClosed=False,
+                    color=(230, 230, 230),
+                    thickness=10,
+                )
 
             # Display the annotated frame
             cv2.imshow("YOLOv8 Tracking", annotated_frame)

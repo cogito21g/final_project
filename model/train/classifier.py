@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from einops import rearrange
 
 
@@ -24,8 +23,12 @@ class LSTMAutoencoder(nn.Module):
         )
 
         # Decoder
-        self.decoder = nn.LSTM(input_size=50 + prediction_time - 1, hidden_size=100, batch_first=True)
-        self.decoder2 = nn.LSTM(input_size=100, hidden_size=n_features, batch_first=True)
+        self.decoder = nn.LSTM(
+            input_size=50 + prediction_time - 1, hidden_size=100, batch_first=True
+        )
+        self.decoder2 = nn.LSTM(
+            input_size=100, hidden_size=n_features, batch_first=True
+        )
 
     def forward(self, x):
         # Encoder
@@ -111,17 +114,27 @@ class NormalHead(nn.Module):
     def build_layers(self, in_channel):
         ratio_1, ratio_2 = self.ratios
         self.conv1 = nn.Conv1d(
-            in_channel, in_channel // ratio_1, self.kernel_sizes[0], 1, self.kernel_sizes[0] // 2
+            in_channel,
+            in_channel // ratio_1,
+            self.kernel_sizes[0],
+            1,
+            self.kernel_sizes[0] // 2,
         )
         # stride는 1, padding은 kernel_size // 2로 두면
         # (input_length - kernel_size + 2 * (kernel_size // 2)) + 1 == input_length
         # => 길이 유지
         self.bn1 = nn.BatchNorm1d(in_channel // ratio_1)
         self.conv2 = nn.Conv1d(
-            in_channel // ratio_1, in_channel // ratio_2, self.kernel_sizes[1], 1, self.kernel_sizes[1] // 2
+            in_channel // ratio_1,
+            in_channel // ratio_2,
+            self.kernel_sizes[1],
+            1,
+            self.kernel_sizes[1] // 2,
         )
         self.bn2 = nn.BatchNorm1d(in_channel // ratio_2)
-        self.conv3 = nn.Conv1d(in_channel // ratio_2, 1, self.kernel_sizes[2], 1, self.kernel_sizes[2] // 2)
+        self.conv3 = nn.Conv1d(
+            in_channel // ratio_2, 1, self.kernel_sizes[2], 1, self.kernel_sizes[2] // 2
+        )
         self.act = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
@@ -192,7 +205,9 @@ class Attention(nn.Module):
     def forward(self, x):
         b, n, d = x.size()
         qkvt = self.to_qkv(x).chunk(4, dim=-1)
-        q, k, v, t = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=self.heads), qkvt)
+        q, k, v, t = map(
+            lambda t: rearrange(t, "b n (h d) -> b h n d", h=self.heads), qkvt
+        )
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
@@ -202,7 +217,12 @@ class Attention(nn.Module):
         tmp_n = torch.linspace(1, n, n).cuda()
         tg_tmp = torch.abs(tmp_n * tmp_ones - tmp_n.view(-1, 1))
         attn2 = torch.exp(-tg_tmp / torch.exp(torch.tensor(1.0)))
-        attn2 = (attn2 / attn2.sum(-1)).unsqueeze(0).unsqueeze(1).repeat(b, self.heads, 1, 1)
+        attn2 = (
+            (attn2 / attn2.sum(-1))
+            .unsqueeze(0)
+            .unsqueeze(1)
+            .repeat(b, self.heads, 1, 1)
+        )
 
         out = torch.cat([torch.matmul(attn1, v), torch.matmul(attn2, t)], dim=-1)
         out = rearrange(out, "b h n d -> b n (h d)")
@@ -217,7 +237,12 @@ class Transformer(nn.Module):
             self.layers.append(
                 nn.ModuleList(
                     [
-                        PreNorm(dim, Attention(dim, heads=heads, dim_head=dim_head, dropout=dropout)),
+                        PreNorm(
+                            dim,
+                            Attention(
+                                dim, heads=heads, dim_head=dim_head, dropout=dropout
+                            ),
+                        ),
                         PreNorm(dim, FeedForward(dim, mlp_dim, dropout=dropout)),
                     ]
                 )
@@ -235,7 +260,13 @@ class Temporal(nn.Module):
     def __init__(self, input_size, out_size):
         super(Temporal, self).__init__()
         self.conv_1 = nn.Sequential(
-            nn.Conv1d(in_channels=input_size, out_channels=out_size, kernel_size=3, stride=1, padding=1),
+            nn.Conv1d(
+                in_channels=input_size,
+                out_channels=out_size,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+            ),
             nn.ReLU(),
         )
 
@@ -263,7 +294,12 @@ class Temporal(nn.Module):
 
 class WSAD(nn.Module):
     def __init__(
-        self, input_size, ratio_sample=0.2, ratio_batch=0.4, ratios=[16, 32], kernel_sizes=[1, 1, 1]
+        self,
+        input_size,
+        ratio_sample=0.2,
+        ratio_batch=0.4,
+        ratios=[16, 32],
+        kernel_sizes=[1, 1, 1],
     ):
         super().__init__()
         # self.flag = flag
@@ -278,7 +314,9 @@ class WSAD(nn.Module):
         self.kernel_sizes = kernel_sizes
         # 기본값 [1, 1, 1]
 
-        self.normal_head = NormalHead(in_channel=512, ratios=ratios, kernel_sizes=kernel_sizes)
+        self.normal_head = NormalHead(
+            in_channel=512, ratios=ratios, kernel_sizes=kernel_sizes
+        )
         self.embedding = Temporal(input_size, 512)
         self.selfatt = Transformer(512, 2, 4, 128, 512, dropout=0)
         # embedding + selfatt은 논문의 feature enhancer
@@ -310,7 +348,9 @@ class WSAD(nn.Module):
         # BN은 각 feature(채널 축)별 batch*h*w개 평균, 분산 계산
         # => (b, c, h*w) -> (c)
         # => None으로 unsqueeze해서 (1, c, 1)로 변경
-        distance = torch.sqrt(torch.sum((feats - anchor[None, :, None]) ** 2 / var[None, :, None], dim=1))
+        distance = torch.sqrt(
+            torch.sum((feats - anchor[None, :, None]) ** 2 / var[None, :, None], dim=1)
+        )
         # (x - m)^2/var -> torch.sum(dim=1)로 각배치 안의 각 토막(segment)별로 값 존재 (b, t)
         # sqrt후에도 사이즈 그대로 (b, t)
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -380,9 +420,13 @@ class WSAD(nn.Module):
         # (top k에 속하는 index 자리만 True, 나머지는 False)
         # scatter는 gather의 reverse operation
 
-        mask_select_abnormal_batch = torch.zeros_like(abn_distance_flatten, dtype=torch.bool)
+        mask_select_abnormal_batch = torch.zeros_like(
+            abn_distance_flatten, dtype=torch.bool
+        )
         # (a_batch_size * t snippets)
-        topk_abnormal_batch = torch.topk(abn_distance_flatten, select_num_batch, dim=-1)[1]
+        topk_abnormal_batch = torch.topk(
+            abn_distance_flatten, select_num_batch, dim=-1
+        )[1]
         # (a_batch_size * select_num_batch)
         # top K = select_num_batch 개 indices
         mask_select_abnormal_batch.scatter_(
@@ -392,7 +436,9 @@ class WSAD(nn.Module):
         )
         # (a_batch_size * t snippets)
 
-        mask_select_abnormal = mask_select_abnormal_batch | mask_select_abnormal_sample.reshape(-1)
+        mask_select_abnormal = (
+            mask_select_abnormal_batch | mask_select_abnormal_sample.reshape(-1)
+        )
         # SLS와 BLS를 or 연산 | 으로 합쳐서 논문의 Sample-Batch Selection(SBS)
         select_abn_feats = abn_feats_flatten[mask_select_abnormal]
         # mask_select_abnormal는 (a_batch_size * t snippets)개 중 num_select_abnormal개만 True고 나머진 False
@@ -412,7 +458,9 @@ class WSAD(nn.Module):
         # nor_distance는 (n_batch_size, t snippets)
         # topk_normal_sample는 각 영상의 t개 토막 중 상위 k_nor개의 indices
         # => (n_batch_size, k_nor)
-        select_nor_feats = torch.gather(nor_feats, 1, topk_normal_sample[..., None].expand(-1, -1, c))
+        select_nor_feats = torch.gather(
+            nor_feats, 1, topk_normal_sample[..., None].expand(-1, -1, c)
+        )
         # nor_feats는 (n_batch_size, t snippets, c features)
         # gather의 index는 input과 차원수가 같아야하므로 None으로 (n_batch_size, k_nor, 1), expand로 (n_batch_size, k_nor, c) 형태로 변경
         # expand : Returns a new view of the self tensor with singleton dimensions expanded to a larger size.
@@ -465,7 +513,9 @@ class WSAD(nn.Module):
             select_normals = []
             select_abnormals = []
             for feat, distance in zip(normal_feats, distances):
-                select_feat_normal, select_feat_abnormal = self.pos_neg_select(feat, distance, n)
+                select_feat_normal, select_feat_abnormal = self.pos_neg_select(
+                    feat, distance, n
+                )
                 # select_feat_normal, select_feat_abnormal 둘다 (num_select_abnormal, c feature) 형태
                 select_normals.append(select_feat_normal[..., None])
                 select_abnormals.append(select_feat_abnormal[..., None])

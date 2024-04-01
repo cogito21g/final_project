@@ -1,54 +1,49 @@
-from collections import defaultdict
-import cv2
-import numpy as np
-import pandas as pd
-from ultralytics import YOLO
-import torch
-from sklearn.preprocessing import MinMaxScaler
-
-from fastapi import HTTPException
-from starlette import status
-from database import crud
-from database import schemas
-
-import os
-import uuid
 import json
+import os
+import sys
+import uuid
+from collections import defaultdict
 from datetime import datetime, time
-import matplotlib.pyplot as plt
 from io import BytesIO
 
+import albumentations as A
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
-
-import albumentations as A
-
-import sys
+from database import crud, schemas
+from fastapi import HTTPException
+from sklearn.preprocessing import MinMaxScaler
+from starlette import status
+from ultralytics import YOLO
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 
 sys.path.append(os.path.join(parent_dir, "model"))
+from copy import deepcopy
+
 import vmae
 
 # @@ timm은 0.4.12 버전 사용 필수
 from timm.models import create_model
 
-from copy import deepcopy
 
 class AnomalyDetector:
     def __init__(self, video_file, info, s3_client, settings, db):
         self.video = s3_client.generate_presigned_url(
-            ClientMethod="get_object", Params={"Bucket": settings.BUCKET, "Key": video_file}, ExpiresIn=3600
+            ClientMethod="get_object",
+            Params={"Bucket": settings.BUCKET, "Key": video_file},
+            ExpiresIn=3600,
         )
         # print(self.video)
         self.info = info
         self.s3 = s3_client
         self.settings = settings
         self.thr = info["threshold"]
-        self.video_url = (
-            f"video/{info['user_id']}/{info['upload_id']}/{info['video_uuid_name']}{info['video_ext']}"
-        )
+        self.video_url = f"video/{info['user_id']}/{info['upload_id']}/{info['video_uuid_name']}{info['video_ext']}"
         self.frame_url_base = f"frame/{info['user_id']}/{info['upload_id']}/"
         self.db = db
 
@@ -57,7 +52,16 @@ class AnomalyDetector:
         font_scale = 1
         font_color = (0, 255, 0)  # Green color
         font_thickness = 2
-        cv2.putText(frame, text, position, font, font_scale, font_color, font_thickness, cv2.LINE_AA)
+        cv2.putText(
+            frame,
+            text,
+            position,
+            font,
+            font_scale,
+            font_color,
+            font_thickness,
+            cv2.LINE_AA,
+        )
 
     def upload_frame_db(self, db, temp_for_db, frame_url):
 
@@ -83,7 +87,8 @@ class AnomalyDetector:
 
     def upload_frame_s3(self, s3, frame):
         s3_upload_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Frame 을 s3 저장소 업로드에 실패했습니다."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Frame 을 s3 저장소 업로드에 실패했습니다.",
         )
         frame_name = uuid.uuid1()
         frame_url = self.frame_url_base + f"{frame_name}" + ".png"
@@ -104,7 +109,8 @@ class AnomalyDetector:
 
     def upload_video_s3(self, s3, video):
         s3_upload_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="video 를 s3 저장소 업로드에 실패했습니다."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="video 를 s3 저장소 업로드에 실패했습니다.",
         )
         video_url = self.video_url
 
@@ -115,7 +121,10 @@ class AnomalyDetector:
         try:
             with open(video_change_codec, "rb") as video_file:
                 s3.upload_fileobj(
-                    video_file, self.settings.BUCKET, video_url, ExtraArgs={"ContentType": "video/mp4"}
+                    video_file,
+                    self.settings.BUCKET,
+                    video_url,
+                    ExtraArgs={"ContentType": "video/mp4"},
                 )
         except Exception as e:
             # print(e)
@@ -139,14 +148,18 @@ class AnomalyDetector:
             graph = image_file.read()
 
         s3_upload_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="score Graph 를 s3 저장소 업로드에 실패했습니다."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="score Graph 를 s3 저장소 업로드에 실패했습니다.",
         )
         score_graph_name = "score_graph.png"
         score_graph_url = self.frame_url_base + score_graph_name
 
         try:
             s3.upload_fileobj(
-                BytesIO(graph), self.settings.BUCKET, score_graph_url, ExtraArgs={"ContentType": "image/png"}
+                BytesIO(graph),
+                self.settings.BUCKET,
+                score_graph_url,
+                ExtraArgs={"ContentType": "image/png"},
             )
         except:
             raise s3_upload_exception
@@ -219,7 +232,9 @@ class AnomalyDetector:
 
         # video writer -> ID 별 score, bbox 가 나온 영상을 s3 에 업로드
         output_video_path = "./temp_video_path.mp4"
-        output_video = cv2.VideoWriter(output_video_path, fourcc, fps, (standard_width, standard_height))
+        output_video = cv2.VideoWriter(
+            output_video_path, fourcc, fps, (standard_width, standard_height)
+        )
 
         # Define a function to calculate MSE between two sequences
         def calculate_mse(seq1, seq2):
@@ -253,7 +268,12 @@ class AnomalyDetector:
             if success:
                 frame = cv2.resize(frame, (standard_width, standard_height))
 
-                temp_for_db = {"timestamp": None, "bbox": {}, "keypoints": {}, "score": None}
+                temp_for_db = {
+                    "timestamp": None,
+                    "bbox": {},
+                    "keypoints": {},
+                    "score": None,
+                }
 
                 # track id (사람) 별로 mse 점수가 나오기 때문에 한 frame 에 여러 mse 점수가 나옴. 이를 frame 별 점수로 구하기 위해서 변수 설정
                 # mse_unit = 0
@@ -306,7 +326,9 @@ class AnomalyDetector:
                     ):
                         if scores[-1] > threshold:
                             anomaly_text = f"Anomaly detected, score: {scores[-1]}"
-                            if results_i[0].boxes is not None:  # Check if there are results and boxes
+                            if (
+                                results_i[0].boxes is not None
+                            ):  # Check if there are results and boxes
 
                                 # Get the boxes
                                 boxes = results_i[0].boxes.xywh.cpu()
@@ -314,7 +336,9 @@ class AnomalyDetector:
                                 if results_i[0].boxes.id is not None:
                                     # If 'int' attribute exists (there are detections), get the track IDs
 
-                                    track_ids = results_i[0].boxes.id.int().cpu().tolist()
+                                    track_ids = (
+                                        results_i[0].boxes.id.int().cpu().tolist()
+                                    )
 
                                     # Loop through the detections and add data to the DataFrame
                                     # anomaly_text = ""  # Initialize the anomaly text
@@ -323,23 +347,36 @@ class AnomalyDetector:
                                     if f_step % frame_inteval == 0:
                                         # 한 프레임에서 검출된 사람만큼 돌아가는 반복문. 2명이면 각 id 별로 아래 연산들이 진행됨.
                                         for i, box in zip(
-                                            range(0, len(track_ids)), results_i[0].boxes.xywhn.cpu()
+                                            range(0, len(track_ids)),
+                                            results_i[0].boxes.xywhn.cpu(),
                                         ):
 
                                             x, y, w, h = box
                                             keypoints = (
-                                                results_i[0].keypoints.xyn[i].cpu().numpy().flatten().tolist()
+                                                results_i[0]
+                                                .keypoints.xyn[i]
+                                                .cpu()
+                                                .numpy()
+                                                .flatten()
+                                                .tolist()
                                             )
 
                                             xywhk = np.array(
-                                                [float(x), float(y), float(w), float(h)] + keypoints
+                                                [float(x), float(y), float(w), float(h)]
+                                                + keypoints
                                             )
 
-                                            xywhk = list(map(lambda x: str(round(x, 4)), xywhk))
+                                            xywhk = list(
+                                                map(lambda x: str(round(x, 4)), xywhk)
+                                            )
 
-                                            temp_for_db_i["bbox"][f"id {i}"] = " ".join(xywhk[:4])
+                                            temp_for_db_i["bbox"][f"id {i}"] = " ".join(
+                                                xywhk[:4]
+                                            )
 
-                                            temp_for_db_i["keypoints"][f"id {i}"] = " ".join(xywhk[4:])
+                                            temp_for_db_i["keypoints"][f"id {i}"] = (
+                                                " ".join(xywhk[4:])
+                                            )
 
                                 else:
                                     # If 'int' attribute doesn't exist (no detections), set track_ids to an empty list
@@ -373,7 +410,9 @@ class AnomalyDetector:
                                 output_video.write(annotated_frame)
                                 # cv2.imshow("YOLOv8 Tracking", annotated_frame)
                             else:
-                                self.display_text(frame_i, anomaly_text, (10, 30))  # Display the anomaly text
+                                self.display_text(
+                                    frame_i, anomaly_text, (10, 30)
+                                )  # Display the anomaly text
                                 output_video.write(frame_i)
 
                             # vmae에서 보는 frame들만 db에 저장

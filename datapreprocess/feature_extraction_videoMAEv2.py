@@ -1,19 +1,19 @@
 # from collections import defaultdict
 import argparse
-import cv2
-import numpy as np
 import os
 from copy import deepcopy
 from datetime import datetime
-import torch
 
 # import torch.nn as nn
 # import torch.nn.functional as F
 import albumentations as A
+import cv2
 import matplotlib.pyplot as plt
 
 # from datetime import datetime
 import models
+import numpy as np
+import torch
 from timm.models import create_model
 from tqdm import tqdm
 
@@ -24,7 +24,10 @@ print(torch.cuda.is_available())
 parser = argparse.ArgumentParser(description="Feature Extraction")
 
 parser.add_argument(
-    "--root", type=str, help="root folder path", default="/data/ephemeral/home/datasets/UCFCrime/normal/"
+    "--root",
+    type=str,
+    help="root folder path",
+    default="/data/ephemeral/home/datasets/UCFCrime/normal/",
 )
 
 args = parser.parse_args()

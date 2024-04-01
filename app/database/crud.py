@@ -1,17 +1,26 @@
-from datetime import timedelta, datetime, date
-
-from sqlalchemy.orm import Session, aliased
-from sqlalchemy import func
 import smtplib
+from datetime import date, datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+from database import models
+from database.schemas import (
+    Complete,
+    FrameCreate,
+    UploadCreate,
+    UserBase,
+    UserCreate,
+    VideoCreate,
+)
+from sqlalchemy import func
+from sqlalchemy.orm import Session, aliased
+from utils.config import settings
+from utils.security import get_password_hash, verify_password
+
 # from email.mime.image import MIMEImage
 # from passlib.context import CryptContext
 
-from database.schemas import UserBase, UserCreate, UploadCreate, VideoCreate, FrameCreate, Complete
-from database import models
-from utils.security import get_password_hash, verify_password
-from utils.config import settings
+
 
 ## User
 def create_user(db: Session, user: UserCreate):
@@ -32,7 +41,9 @@ def get_user_by_email(db: Session, email: str):
 
 
 def get_existing_user(db: Session, user_create: UserCreate):
-    return db.query(models.User).filter((models.User.email == user_create.email)).first()
+    return (
+        db.query(models.User).filter((models.User.email == user_create.email)).first()
+    )
 
 
 def authenticate(db: Session, *, email: str, password: str):
@@ -42,6 +53,7 @@ def authenticate(db: Session, *, email: str, password: str):
     if not verify_password(password, user.password):
         return None
     return user
+
 
 def is_active(user: UserBase) -> bool:
     return user.is_active
@@ -57,7 +69,9 @@ def create_upload(db: Session, upload: UploadCreate):
 
 
 def delete_upload(db: Session, upload_id: int):
-    db_upload = db.query(models.Upload).filter(models.Upload.upload_id == upload_id).first()
+    db_upload = (
+        db.query(models.Upload).filter(models.Upload.upload_id == upload_id).first()
+    )
 
     if db_upload:
         db.delete(db_upload)
@@ -79,7 +93,9 @@ def get_upload_id(
     return (
         db.query(models.Upload)
         .filter(
-            (models.Upload.user_id == user_id) & (models.Upload.name == name) & (models.Upload.date == date)
+            (models.Upload.user_id == user_id)
+            & (models.Upload.name == name)
+            & (models.Upload.date == date)
         )
         .all()
     )
@@ -132,7 +148,9 @@ def get_frames_with_highest_score(db: Session, video_id: int):
 
     subquery = (
         db.query(
-            models.Frame.video_id, models.Frame.time_stamp, func.max(models.Frame.score).label("max_score")
+            models.Frame.video_id,
+            models.Frame.time_stamp,
+            func.max(models.Frame.score).label("max_score"),
         )
         .group_by(models.Frame.video_id, models.Frame.time_stamp)
         .subquery()
@@ -164,12 +182,16 @@ def create_complete(db: Session, complete: Complete):
 
 
 def get_complete(db: Session, upload_id: int):
-    return db.query(models.Complete).filter(models.Complete.upload_id == upload_id).first()
+    return (
+        db.query(models.Complete).filter(models.Complete.upload_id == upload_id).first()
+    )
 
 
 def update_complete_status(db: Session, upload_id: int):
 
-    complete_record = db.query(models.Complete).filter(models.Complete.upload_id == upload_id).first()
+    complete_record = (
+        db.query(models.Complete).filter(models.Complete.upload_id == upload_id).first()
+    )
 
     if complete_record and not complete_record.completed:
         complete_record.completed = True
@@ -179,8 +201,12 @@ def update_complete_status(db: Session, upload_id: int):
 # email feat
 async def create_smtp_server():
 
-    smtp = smtplib.SMTP_SSL(settings.SMTP_ADDRESS, settings.SMTP_PORT)  # smtp 서버와 연결
-    smtp.login(settings.MAIL_ACCOUNT, settings.MAIL_PASSWORD)  # 프로젝트 계정으로 로그인
+    smtp = smtplib.SMTP_SSL(
+        settings.SMTP_ADDRESS, settings.SMTP_PORT
+    )  # smtp 서버와 연결
+    smtp.login(
+        settings.MAIL_ACCOUNT, settings.MAIL_PASSWORD
+    )  # 프로젝트 계정으로 로그인
 
     return smtp
 

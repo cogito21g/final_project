@@ -1,10 +1,9 @@
+import pdb
+from functools import partial
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from functools import partial
-
-import pdb
 
 
 def MIL(y_pred, batch_size, feature_length, is_transformer=0):
@@ -47,7 +46,12 @@ def MIL(y_pred, batch_size, feature_length, is_transformer=0):
         loss += F.relu(1.0 - y_anomaly_max + y_normal_max)
 
         sparsity += torch.sum(y_anomaly) * 0.00008
-        smooth += torch.sum((y_pred[i, : feature_length - 1] - y_pred[i, 1:feature_length]) ** 2) * 0.00008
+        smooth += (
+            torch.sum(
+                (y_pred[i, : feature_length - 1] - y_pred[i, 1:feature_length]) ** 2
+            )
+            * 0.00008
+        )
     loss = (loss + sparsity + smooth) / batch_size
 
     return loss

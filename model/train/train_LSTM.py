@@ -1,30 +1,22 @@
-import pandas as pd
-import numpy as np
+import os
+import os.path as osp
 import random
-import matplotlib.pyplot as plt
-
+from argparse import ArgumentParser
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from torch.utils.data import Dataset, DataLoader, random_split
-
+import wandb
+from classifier import LSTMAutoencoder
+from shop_dataset import AbnormalDataset, NormalDataset
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import MinMaxScaler
-
-from argparse import ArgumentParser
-
-import os
-import os.path as osp
-
+from torch.utils.data import DataLoader, Dataset, random_split
 from tqdm import tqdm
-
-import wandb
-
-from shop_dataset import NormalDataset, AbnormalDataset
-from classifier import LSTMAutoencoder
 
 
 def parse_args():
@@ -58,7 +50,9 @@ def parse_args():
     )
     # abnormal 검증셋 csv, json파일 경로
     parser.add_argument(
-        "--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "/data/ephemeral/home/pths")
+        "--model_dir",
+        type=str,
+        default=os.environ.get("SM_MODEL_DIR", "/data/ephemeral/home/pths"),
     )
     # pth 파일 저장 경로
 
@@ -71,7 +65,9 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=666)
     # random seed
 
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--device", default="cuda" if torch.cuda.is_available() else "cpu"
+    )
     parser.add_argument("--num_workers", type=int, default=8)
 
     parser.add_argument("--batch_size", type=int, default=64)
@@ -165,14 +161,22 @@ def train(
 
     train_data_size = len(dataset) - valid_data_size
 
-    train_dataset, valid_dataset = random_split(dataset, lengths=[train_data_size, valid_data_size])
+    train_dataset, valid_dataset = random_split(
+        dataset, lengths=[train_data_size, valid_data_size]
+    )
 
     train_loader = DataLoader(
-        dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+        dataset=train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
     )
 
     valid_loader = DataLoader(
-        dataset=valid_dataset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers
+        dataset=valid_dataset,
+        batch_size=val_batch_size,
+        shuffle=False,
+        num_workers=val_num_workers,
     )
 
     abnormal_dataset = AbnormalDataset(
@@ -181,7 +185,10 @@ def train(
     )
 
     abnormal_loader = DataLoader(
-        dataset=abnormal_dataset, batch_size=val_batch_size, shuffle=True, num_workers=val_num_workers
+        dataset=abnormal_dataset,
+        batch_size=val_batch_size,
+        shuffle=True,
+        num_workers=val_num_workers,
     )
 
     data_load_end = datetime.now()
@@ -206,9 +213,13 @@ def train(
     # )
     model.to(device)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-6)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=learning_rate, weight_decay=1e-6
+    )
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[15, 40], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[15, 40], gamma=0.1
+    )
 
     # if resume_name:
     #     optimizer.load_state_dict(load_dict["optimizer_state_dict"])
@@ -267,7 +278,9 @@ def train(
         train_end = datetime.now()
         train_time = train_end - epoch_start
         train_time = str(train_time).split(".")[0]
-        print(f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)}")
+        print(
+            f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)}"
+        )
 
         if (epoch + 1) % save_interval == 0:
 
@@ -300,7 +313,9 @@ def train(
                 error_count = 0
                 error_count_abnormal = 0
 
-                for step, (x, y, label) in tqdm(enumerate(valid_loader), total=len(valid_loader)):
+                for step, (x, y, label) in tqdm(
+                    enumerate(valid_loader), total=len(valid_loader)
+                ):
                     x, y, label = x.to(device), y.to(device), label.to(device)
 
                     pred = model(x)
@@ -343,7 +358,9 @@ def train(
                     # ==> vaild_auc는 항상 0
                 val_accuracy = total_n_corrects / valid_data_size
 
-                for step, (x, y, label) in tqdm(enumerate(abnormal_loader), total=len(abnormal_loader)):
+                for step, (x, y, label) in tqdm(
+                    enumerate(abnormal_loader), total=len(abnormal_loader)
+                ):
                     x, y, label = x.to(device), y.to(device), label.to(device)
 
                     pred = model(x)
@@ -374,19 +391,30 @@ def train(
 
                     total_abnormal_loss += val_loss
 
-                val_abnormal_mean_loss = (total_abnormal_loss / len(abnormal_loader)).item()
-                val_abnormal_auc = total_abnormal_auc / (len(abnormal_loader) - error_count_abnormal)
-                val_abnormal_accuracy = total_abnormal_n_corrects / len(abnormal_dataset)
+                val_abnormal_mean_loss = (
+                    total_abnormal_loss / len(abnormal_loader)
+                ).item()
+                val_abnormal_auc = total_abnormal_auc / (
+                    len(abnormal_loader) - error_count_abnormal
+                )
+                val_abnormal_accuracy = total_abnormal_n_corrects / len(
+                    abnormal_dataset
+                )
 
                 val_total_auc = (total_auc + total_abnormal_auc) / (
-                    len(valid_loader) + len(abnormal_loader) - error_count - error_count_abnormal
+                    len(valid_loader)
+                    + len(abnormal_loader)
+                    - error_count
+                    - error_count_abnormal
                 )
                 val_total_accuracy = (total_n_corrects + total_abnormal_n_corrects) / (
                     valid_data_size + len(abnormal_dataset)
                 )
 
             if best_loss > val_mean_loss:
-                print(f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
+                print(
+                    f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}"
+                )
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -398,7 +426,9 @@ def train(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_loss = val_mean_loss
                 counter = 0

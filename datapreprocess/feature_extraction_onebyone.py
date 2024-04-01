@@ -1,19 +1,22 @@
-from collections import defaultdict
-import cv2
-import numpy as np
-from ultralytics import YOLO
+import argparse
 import csv
 import os
+from collections import defaultdict
 from copy import deepcopy
-
 from datetime import datetime
-import argparse
+
+import cv2
+import numpy as np
 from tqdm import tqdm
+from ultralytics import YOLO
 
 parser = argparse.ArgumentParser(description="Feature Extraction")
 
 parser.add_argument(
-    "--root", type=str, help="root folder path", default="/data/ephemeral/home/datasets/UCFCrime/normal/"
+    "--root",
+    type=str,
+    help="root folder path",
+    default="/data/ephemeral/home/datasets/UCFCrime/normal/",
 )
 
 args = parser.parse_args()
@@ -133,7 +136,9 @@ def feat_extraction():
                     # Run YOLOv8 tracking on the frame, persisting tracks between frames
                     results = model.track(frame, persist=True, verbose=False)
 
-                    if results[0].boxes is not None:  # Check if there are results and boxes
+                    if (
+                        results[0].boxes is not None
+                    ):  # Check if there are results and boxes
                         # Get the boxes
                         # boxes = results[0].boxes.xywh.cpu()
 
@@ -141,10 +146,22 @@ def feat_extraction():
                             # If 'int' attribute exists (there are detections), get the track IDs
                             track_ids = results[0].boxes.id.int().cpu().tolist()
 
-                            for i, box in zip(range(0, len(track_ids)), results[0].boxes.xywhn.cpu()):
-                                keypoints = results[0].keypoints.xyn[i].cpu().numpy().flatten().tolist()
+                            for i, box in zip(
+                                range(0, len(track_ids)), results[0].boxes.xywhn.cpu()
+                            ):
+                                keypoints = (
+                                    results[0]
+                                    .keypoints.xyn[i]
+                                    .cpu()
+                                    .numpy()
+                                    .flatten()
+                                    .tolist()
+                                )
                                 box_list = box.numpy().flatten().tolist()
-                                if type(box_list) == "float" or type(keypoints) == "float":
+                                if (
+                                    type(box_list) == "float"
+                                    or type(keypoints) == "float"
+                                ):
                                     print(f"==>> box_list: {box_list}")
                                     print(f"==>> keypoints: {keypoints}")
                                 box_and_keypoints = box_list + keypoints

@@ -1,7 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Time, JSON
+from database.database import Base
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Time,
+)
 from sqlalchemy.orm import relationship
 
-from database.database import Base
 
 class User(Base):
     __tablename__ = "user"
@@ -25,8 +35,12 @@ class Upload(Base):
     user_id = Column(Integer, ForeignKey("user.user_id"), nullable=False)
 
     user = relationship("User", back_populates="uploads")
-    videos = relationship("Video", back_populates="upload", cascade="all, delete-orphan")
-    completes = relationship("Complete", back_populates="upload", cascade="all, delete-orphan")
+    videos = relationship(
+        "Video", back_populates="upload", cascade="all, delete-orphan"
+    )
+    completes = relationship(
+        "Complete", back_populates="upload", cascade="all, delete-orphan"
+    )
 
 
 class Video(Base):

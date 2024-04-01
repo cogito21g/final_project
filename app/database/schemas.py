@@ -1,7 +1,7 @@
-from typing import List, Optional, Dict
 from datetime import datetime, time
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel, field_validator, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from pydantic_core.core_schema import FieldValidationInfo
 
 
@@ -9,8 +9,10 @@ class UserBase(BaseModel):
     email: EmailStr
     is_active: Optional[bool] = True
 
+
 class UserCreate(UserBase):
     password: str
+
 
 # Upload post 스키마
 class UploadCreate(BaseModel):

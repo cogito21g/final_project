@@ -1,16 +1,13 @@
+import json
 import os
 import os.path as osp
-
-from torch.utils.data import Dataset
-
-from sklearn.preprocessing import MinMaxScaler
-
-import pandas as pd
-import numpy as np
-import torch
-
-import json
 from collections import defaultdict as dd
+
+import numpy as np
+import pandas as pd
+import torch
+from sklearn.preprocessing import MinMaxScaler
+from torch.utils.data import Dataset
 
 
 class NormalDataset(Dataset):
@@ -182,17 +179,19 @@ class AbnormalDataset(Dataset):
         sequence.drop(columns=["ID"], inplace=True)
         sequence.drop(columns=["Frame"], inplace=True)
         sequence.drop(columns=["Filename"], inplace=True)
-        #sequence = self.scaler.fit_transform(sequence.values)
+        # sequence = self.scaler.fit_transform(sequence.values)
         sequence = np.array(sequence)
 
         target_labels = []
 
         for target_frame in target_frames:
             temp = 0
-            for cur_id in range(0,len(self.frame_label[target_filename].keys()),2):
-                if int(target_frame) >= int(self.frame_label[target_filename][str(int(cur_id))][0]) and int(
-                    target_frame
-                ) <= int(self.frame_label[target_filename][str(int(cur_id)+1)][1]):
+            for cur_id in range(0, len(self.frame_label[target_filename].keys()), 2):
+                if int(target_frame) >= int(
+                    self.frame_label[target_filename][str(int(cur_id))][0]
+                ) and int(target_frame) <= int(
+                    self.frame_label[target_filename][str(int(cur_id) + 1)][1]
+                ):
                     temp = 1
 
             target_labels.append(temp)

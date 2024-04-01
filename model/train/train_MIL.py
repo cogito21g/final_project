@@ -1,32 +1,24 @@
-import pandas as pd
-import numpy as np
+import os
+import os.path as osp
 import random
-import matplotlib.pyplot as plt
-
+from argparse import ArgumentParser
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import sklearn.metrics
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from torch.utils.data import Dataset, DataLoader, random_split, ConcatDataset
-
-from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_curve
-import sklearn.metrics
-from sklearn.preprocessing import MinMaxScaler
-
-from argparse import ArgumentParser
-
-import os
-import os.path as osp
-
-from tqdm import tqdm
-
 import wandb
-
-from shop_dataset import NormalVMAE, AbnormalVMAE
 from classifier import MILClassifier
 from loss import MIL
+from shop_dataset import AbnormalVMAE, NormalVMAE
+from sklearn.metrics import precision_recall_curve, roc_auc_score, roc_curve
+from sklearn.preprocessing import MinMaxScaler
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
+from tqdm import tqdm
 
 
 def parse_args():
@@ -59,7 +51,9 @@ def parse_args():
         ),
     )
     # abnormal 검증셋 npy, json파일 경로
-    parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "../pths"))
+    parser.add_argument(
+        "--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "../pths")
+    )
     # pth 파일 저장 경로
 
     parser.add_argument("--model_name", type=str, default="MIL")
@@ -74,7 +68,9 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=666)
     # random seed
 
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--device", default="cuda" if torch.cuda.is_available() else "cpu"
+    )
     parser.add_argument("--num_workers", type=int, default=0)
 
     parser.add_argument("--batch_size", type=int, default=30)
@@ -172,10 +168,16 @@ def train(
 
     train_data_size = len(dataset) - valid_data_size
 
-    train_dataset, valid_dataset = random_split(dataset, lengths=[train_data_size, valid_data_size])
+    train_dataset, valid_dataset = random_split(
+        dataset, lengths=[train_data_size, valid_data_size]
+    )
 
     normal_train_loader = DataLoader(
-        dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=num_workers
+        dataset=train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=True,
+        num_workers=num_workers,
     )
 
     normal_valid_loader = DataLoader(
@@ -207,7 +209,10 @@ def train(
     )
 
     abnormal_valid_loader = DataLoader(
-        dataset=abnormal_valid_dataset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers
+        dataset=abnormal_valid_dataset,
+        batch_size=val_batch_size,
+        shuffle=False,
+        num_workers=val_num_workers,
     )
 
     data_load_end = datetime.now()
@@ -221,17 +226,23 @@ def train(
     load_dict = None
 
     if resume_name:
-        load_dict = torch.load(osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu")
+        load_dict = torch.load(
+            osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu"
+        )
         model.load_state_dict(load_dict["model_state_dict"])
 
     model.to(device)
 
     # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
     # 1e-6 => 0.0010000000474974513
-    optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
+    optimizer = torch.optim.Adagrad(
+        model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513
+    )
     # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1000, 1500], gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[1000, 1500], gamma=0.5
+    )
 
     if resume_name:
         optimizer.load_state_dict(load_dict["optimizer_state_dict"])
@@ -295,9 +306,9 @@ def train(
                 normal_input, normal_gt = normal_inputs
                 # (batch_size, 12, 710), (batch_size, 12)
 
-                inputs, gts = torch.cat((abnormal_input, normal_input), dim=1), torch.cat(
-                    (abnormal_gt, normal_gt), dim=1
-                )
+                inputs, gts = torch.cat(
+                    (abnormal_input, normal_input), dim=1
+                ), torch.cat((abnormal_gt, normal_gt), dim=1)
                 # inputs는 (batch_size, 24, 710), gts는 (batch_size, 24)
 
                 # batch_size = inputs.shape[0]
@@ -391,7 +402,9 @@ def train(
 
         epoch_n_mean_loss = epoch_n_loss / len(normal_train_loader)
         epoch_n_mean_MIL_loss = epoch_n_MIL_loss / len(normal_train_loader)
-        epoch_n_accuracy = epoch_n_n_corrects / (batch_size * (len(normal_train_loader)))
+        epoch_n_accuracy = epoch_n_n_corrects / (
+            batch_size * (len(normal_train_loader))
+        )
 
         epoch_mean_normal_max = epoch_normal_max / len(normal_train_loader)
         epoch_mean_normal_mean = epoch_normal_mean / len(normal_train_loader)
@@ -417,8 +430,12 @@ def train(
             f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)} n_loss: {round(epoch_n_mean_loss,4)} MIL_loss: {round(epoch_n_mean_MIL_loss,4)}"
         )
         print(f"accuracy: {epoch_accuracy:.2f} n_accuracy: {epoch_n_accuracy:.2f}")
-        print(f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}")
-        print(f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}")
+        print(
+            f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}"
+        )
+        print(
+            f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}"
+        )
 
         if (epoch + 1) % save_interval == 0:
 
@@ -483,7 +500,9 @@ def train(
                         normal_input, normal_gt = normal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 12)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        abnormal_gt2 = torch.max(
+                            abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2
+                        )[0]
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
@@ -506,10 +525,16 @@ def train(
                         #     print(f"==>> gts: {gts}")
                         #     counter = patience + 1
 
-                        val_MIL_loss = MIL_criterion(pred, val_batch_size, abnormal_input.size(1))
+                        val_MIL_loss = MIL_criterion(
+                            pred, val_batch_size, abnormal_input.size(1)
+                        )
 
-                        pred_a = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 0, :]
-                        pred_n = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 1, :]
+                        pred_a = pred.view(val_batch_size, 2, abnormal_input.size(1))[
+                            :, 0, :
+                        ]
+                        pred_n = pred.view(val_batch_size, 2, abnormal_input.size(1))[
+                            :, 1, :
+                        ]
 
                         pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
                         pred_n_max = torch.mean(torch.max(pred_n, dim=-1)[0])
@@ -532,9 +557,13 @@ def train(
 
                         for j in range(abnormal_input.size(1)):
                             pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
-                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[abnormal_input.size(1) + j]
+                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[
+                                abnormal_input.size(1) + j
+                            ]
 
-                        pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
+                        pred_np = np.concatenate(
+                            (pred_abnormal_np, pred_normal_np), axis=0
+                        )
 
                         abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
                         # abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
@@ -548,7 +577,9 @@ def train(
                             # auc = roc_auc_score(y_true=gt_np, y_score=pred)
 
                             fpr, tpr, cut = roc_curve(y_true=gt_np, y_score=pred_np)
-                            precision, recall, cut2 = precision_recall_curve(gt_np, pred_np)
+                            precision, recall, cut2 = precision_recall_curve(
+                                gt_np, pred_np
+                            )
 
                             auc = sklearn.metrics.auc(fpr, tpr)
                             ap = sklearn.metrics.auc(recall, precision)
@@ -567,7 +598,9 @@ def train(
 
                             total_n_auc += auc
                             total_n_ap += ap
-                            total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
+                            total_n_n_corrects += corrects / (
+                                abnormal_input.size(1) * 2
+                            )
                             total_n_loss += val_loss.item()
                             total_n_MIL_loss += val_MIL_loss.item()
 
@@ -589,7 +622,9 @@ def train(
                         abnormal_input, abnormal_gt = abnormal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 192)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        abnormal_gt2 = torch.max(
+                            abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2
+                        )[0]
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
@@ -635,8 +670,12 @@ def train(
                             # auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
                             # auc = roc_auc_score(y_true=abnormal_gt2, y_score=pred)
 
-                            fpr, tpr, cut = roc_curve(y_true=abnormal_gt, y_score=pred_abnormal_np)
-                            precision, recall, cut2 = precision_recall_curve(abnormal_gt, pred_abnormal_np)
+                            fpr, tpr, cut = roc_curve(
+                                y_true=abnormal_gt, y_score=pred_abnormal_np
+                            )
+                            precision, recall, cut2 = precision_recall_curve(
+                                abnormal_gt, pred_abnormal_np
+                            )
 
                             auc = sklearn.metrics.auc(fpr, tpr)
                             ap = sklearn.metrics.auc(recall, precision)
@@ -669,8 +708,12 @@ def train(
                             error_count += 1
                             # print("0~180 전부 0인 abnormal 영상 있음")
 
-                val_n_mean_loss = total_n_loss / (len(normal_valid_loader) - error_n_count)
-                val_n_mean_MIL_loss = total_n_MIL_loss / (len(normal_valid_loader) - error_n_count)
+                val_n_mean_loss = total_n_loss / (
+                    len(normal_valid_loader) - error_n_count
+                )
+                val_n_mean_MIL_loss = total_n_MIL_loss / (
+                    len(normal_valid_loader) - error_n_count
+                )
 
                 val_n_fpr = total_n_fpr / ((len(normal_valid_loader) - error_n_count))
                 val_n_tpr = total_n_tpr / ((len(normal_valid_loader) - error_n_count))
@@ -678,7 +721,9 @@ def train(
                 val_n_auc = total_n_auc / (len(normal_valid_loader) - error_n_count)
                 val_n_ap = total_n_ap / (len(normal_valid_loader) - error_n_count)
 
-                val_n_accuracy = total_n_n_corrects / ((len(normal_valid_loader) - error_n_count))
+                val_n_accuracy = total_n_n_corrects / (
+                    (len(normal_valid_loader) - error_n_count)
+                )
 
                 val_mean_loss = (total_loss + total_n_loss) / (
                     len(abnormal_valid_loader) - error_n_count - error_count
@@ -696,14 +741,20 @@ def train(
                 val_auc = (total_auc + total_n_auc) / (
                     len(abnormal_valid_loader) - error_n_count - error_count
                 )
-                val_ap = (total_ap + total_n_ap) / (len(abnormal_valid_loader) - error_n_count - error_count)
+                val_ap = (total_ap + total_n_ap) / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
                 val_accuracy = (total_n_corrects + total_n_n_corrects) / (
                     (len(abnormal_valid_loader) - error_n_count - error_count)
                 )
                 # for loop 한번에 abnormal 12, normal 12해서 24개 정답 확인
 
-                val_mean_normal_max = total_normal_max / (len(normal_valid_loader) - error_n_count)
-                val_mean_normal_mean = total_normal_mean / (len(normal_valid_loader) - error_n_count)
+                val_mean_normal_max = total_normal_max / (
+                    len(normal_valid_loader) - error_n_count
+                )
+                val_mean_normal_mean = total_normal_mean / (
+                    len(normal_valid_loader) - error_n_count
+                )
                 val_mean_abnormal_max = total_abnormal_max / (
                     len(abnormal_valid_loader) - error_n_count - error_count
                 )
@@ -712,7 +763,9 @@ def train(
                 )
 
             if best_loss > val_mean_loss:
-                print(f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
+                print(
+                    f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}"
+                )
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -724,7 +777,9 @@ def train(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_loss = val_mean_loss
                 # counter = 0
@@ -732,7 +787,9 @@ def train(
             #     counter += 1
 
             if best_auc < val_auc:
-                print(f"Best auc performance at epoch: {epoch + 1}, {best_auc:.4f} -> {val_auc:.4f}")
+                print(
+                    f"Best auc performance at epoch: {epoch + 1}, {best_auc:.4f} -> {val_auc:.4f}"
+                )
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -744,7 +801,9 @@ def train(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best_auc.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best_auc.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_auc = val_auc
                 counter = 0
@@ -802,7 +861,9 @@ def train(
         print(
             f"==>> val_abnormal_max_mean: {val_mean_abnormal_max} val_abnormal_mean: {val_mean_abnormal_mean}"
         )
-        print(f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}")
+        print(
+            f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}"
+        )
         print(f"==>> error_count: {error_count}")
 
         if counter > patience:
@@ -870,7 +931,9 @@ def train2(
 
     train_data_size = len(dataset) - valid_data_size
 
-    train_dataset, valid_dataset = random_split(dataset, lengths=[train_data_size, valid_data_size])
+    train_dataset, valid_dataset = random_split(
+        dataset, lengths=[train_data_size, valid_data_size]
+    )
 
     # normal_train_loader = DataLoader(
     #     dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=num_workers
@@ -907,11 +970,18 @@ def train2(
     concat_trainset = ConcatDataset([train_dataset, abnormal_train_dataset])
 
     concat_train_loader = DataLoader(
-        dataset=concat_trainset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=num_workers
+        dataset=concat_trainset,
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=True,
+        num_workers=num_workers,
     )
 
     abnormal_valid_loader = DataLoader(
-        dataset=abnormal_valid_dataset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers
+        dataset=abnormal_valid_dataset,
+        batch_size=val_batch_size,
+        shuffle=False,
+        num_workers=val_num_workers,
     )
 
     data_load_end = datetime.now()
@@ -925,17 +995,23 @@ def train2(
     load_dict = None
 
     if resume_name:
-        load_dict = torch.load(osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu")
+        load_dict = torch.load(
+            osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu"
+        )
         model.load_state_dict(load_dict["model_state_dict"])
 
     model.to(device)
 
     # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
     # 1e-6 => 0.0010000000474974513
-    optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
+    optimizer = torch.optim.Adagrad(
+        model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513
+    )
     # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1000, 1500], gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[1000, 1500], gamma=0.5
+    )
 
     if resume_name:
         optimizer.load_state_dict(load_dict["optimizer_state_dict"])
@@ -1055,10 +1131,16 @@ def train2(
         train_end = datetime.now()
         train_time = train_end - epoch_start
         train_time = str(train_time).split(".")[0]
-        print(f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)}")
+        print(
+            f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)}"
+        )
         print(f"accuracy: {epoch_accuracy:.2f}")
-        print(f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}")
-        print(f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}")
+        print(
+            f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}"
+        )
+        print(
+            f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}"
+        )
 
         if (epoch + 1) % save_interval == 0:
 
@@ -1123,7 +1205,9 @@ def train2(
                         normal_input, normal_gt = normal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 12)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        abnormal_gt2 = torch.max(
+                            abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2
+                        )[0]
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
@@ -1146,10 +1230,16 @@ def train2(
                         #     print(f"==>> gts: {gts}")
                         #     counter = patience + 1
 
-                        val_MIL_loss = MIL_criterion(pred, val_batch_size, abnormal_input.size(1))
+                        val_MIL_loss = MIL_criterion(
+                            pred, val_batch_size, abnormal_input.size(1)
+                        )
 
-                        pred_a = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 0, :]
-                        pred_n = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 1, :]
+                        pred_a = pred.view(val_batch_size, 2, abnormal_input.size(1))[
+                            :, 0, :
+                        ]
+                        pred_n = pred.view(val_batch_size, 2, abnormal_input.size(1))[
+                            :, 1, :
+                        ]
 
                         pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
                         pred_n_max = torch.mean(torch.max(pred_n, dim=-1)[0])
@@ -1172,9 +1262,13 @@ def train2(
 
                         for j in range(abnormal_input.size(1)):
                             pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
-                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[abnormal_input.size(1) + j]
+                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[
+                                abnormal_input.size(1) + j
+                            ]
 
-                        pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
+                        pred_np = np.concatenate(
+                            (pred_abnormal_np, pred_normal_np), axis=0
+                        )
 
                         abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
                         # abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
@@ -1188,7 +1282,9 @@ def train2(
                             # auc = roc_auc_score(y_true=gt_np, y_score=pred)
 
                             fpr, tpr, cut = roc_curve(y_true=gt_np, y_score=pred_np)
-                            precision, recall, cut2 = precision_recall_curve(gt_np, pred_np)
+                            precision, recall, cut2 = precision_recall_curve(
+                                gt_np, pred_np
+                            )
 
                             auc = sklearn.metrics.auc(fpr, tpr)
                             ap = sklearn.metrics.auc(recall, precision)
@@ -1207,7 +1303,9 @@ def train2(
 
                             total_n_auc += auc
                             total_n_ap += ap
-                            total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
+                            total_n_n_corrects += corrects / (
+                                abnormal_input.size(1) * 2
+                            )
                             total_n_loss += val_loss.item()
                             total_n_MIL_loss += val_MIL_loss.item()
 
@@ -1229,7 +1327,9 @@ def train2(
                         abnormal_input, abnormal_gt = abnormal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 192)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        abnormal_gt2 = torch.max(
+                            abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2
+                        )[0]
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
@@ -1275,8 +1375,12 @@ def train2(
                             # auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
                             # auc = roc_auc_score(y_true=abnormal_gt2, y_score=pred)
 
-                            fpr, tpr, cut = roc_curve(y_true=abnormal_gt, y_score=pred_abnormal_np)
-                            precision, recall, cut2 = precision_recall_curve(abnormal_gt, pred_abnormal_np)
+                            fpr, tpr, cut = roc_curve(
+                                y_true=abnormal_gt, y_score=pred_abnormal_np
+                            )
+                            precision, recall, cut2 = precision_recall_curve(
+                                abnormal_gt, pred_abnormal_np
+                            )
 
                             auc = sklearn.metrics.auc(fpr, tpr)
                             ap = sklearn.metrics.auc(recall, precision)
@@ -1309,8 +1413,12 @@ def train2(
                             error_count += 1
                             # print("0~180 전부 0인 abnormal 영상 있음")
 
-                val_n_mean_loss = total_n_loss / (len(normal_valid_loader) - error_n_count)
-                val_n_mean_MIL_loss = total_n_MIL_loss / (len(normal_valid_loader) - error_n_count)
+                val_n_mean_loss = total_n_loss / (
+                    len(normal_valid_loader) - error_n_count
+                )
+                val_n_mean_MIL_loss = total_n_MIL_loss / (
+                    len(normal_valid_loader) - error_n_count
+                )
 
                 val_n_fpr = total_n_fpr / ((len(normal_valid_loader) - error_n_count))
                 val_n_tpr = total_n_tpr / ((len(normal_valid_loader) - error_n_count))
@@ -1318,7 +1426,9 @@ def train2(
                 val_n_auc = total_n_auc / (len(normal_valid_loader) - error_n_count)
                 val_n_ap = total_n_ap / (len(normal_valid_loader) - error_n_count)
 
-                val_n_accuracy = total_n_n_corrects / ((len(normal_valid_loader) - error_n_count))
+                val_n_accuracy = total_n_n_corrects / (
+                    (len(normal_valid_loader) - error_n_count)
+                )
 
                 val_mean_loss = (total_loss + total_n_loss) / (
                     len(abnormal_valid_loader) - error_n_count - error_count
@@ -1336,14 +1446,20 @@ def train2(
                 val_auc = (total_auc + total_n_auc) / (
                     len(abnormal_valid_loader) - error_n_count - error_count
                 )
-                val_ap = (total_ap + total_n_ap) / (len(abnormal_valid_loader) - error_n_count - error_count)
+                val_ap = (total_ap + total_n_ap) / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
                 val_accuracy = (total_n_corrects + total_n_n_corrects) / (
                     (len(abnormal_valid_loader) - error_n_count - error_count)
                 )
                 # for loop 한번에 abnormal 12, normal 12해서 24개 정답 확인
 
-                val_mean_normal_max = total_normal_max / (len(normal_valid_loader) - error_n_count)
-                val_mean_normal_mean = total_normal_mean / (len(normal_valid_loader) - error_n_count)
+                val_mean_normal_max = total_normal_max / (
+                    len(normal_valid_loader) - error_n_count
+                )
+                val_mean_normal_mean = total_normal_mean / (
+                    len(normal_valid_loader) - error_n_count
+                )
                 val_mean_abnormal_max = total_abnormal_max / (
                     len(abnormal_valid_loader) - error_n_count - error_count
                 )
@@ -1352,7 +1468,9 @@ def train2(
                 )
 
             if best_loss > val_mean_loss:
-                print(f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
+                print(
+                    f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}"
+                )
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -1364,7 +1482,9 @@ def train2(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_loss = val_mean_loss
                 # counter = 0
@@ -1372,7 +1492,9 @@ def train2(
             #     counter += 1
 
             if best_auc < val_auc:
-                print(f"Best auc performance at epoch: {epoch + 1}, {best_auc:.4f} -> {val_auc:.4f}")
+                print(
+                    f"Best auc performance at epoch: {epoch + 1}, {best_auc:.4f} -> {val_auc:.4f}"
+                )
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -1384,7 +1506,9 @@ def train2(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best_auc.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best_auc.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_auc = val_auc
                 counter = 0
@@ -1439,7 +1563,9 @@ def train2(
         print(
             f"==>> val_abnormal_max_mean: {val_mean_abnormal_max} val_abnormal_mean: {val_mean_abnormal_mean}"
         )
-        print(f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}")
+        print(
+            f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}"
+        )
         print(f"==>> error_count: {error_count}")
 
         if counter > patience:
@@ -1507,10 +1633,16 @@ def train3(
 
     train_data_size = len(dataset) - valid_data_size
 
-    train_dataset, valid_dataset = random_split(dataset, lengths=[train_data_size, valid_data_size])
+    train_dataset, valid_dataset = random_split(
+        dataset, lengths=[train_data_size, valid_data_size]
+    )
 
     normal_train_loader = DataLoader(
-        dataset=train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=num_workers
+        dataset=train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        drop_last=True,
+        num_workers=num_workers,
     )
 
     normal_valid_loader = DataLoader(
@@ -1542,7 +1674,10 @@ def train3(
     )
 
     abnormal_valid_loader = DataLoader(
-        dataset=abnormal_valid_dataset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers
+        dataset=abnormal_valid_dataset,
+        batch_size=val_batch_size,
+        shuffle=False,
+        num_workers=val_num_workers,
     )
 
     data_load_end = datetime.now()
@@ -1556,17 +1691,23 @@ def train3(
     load_dict = None
 
     if resume_name:
-        load_dict = torch.load(osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu")
+        load_dict = torch.load(
+            osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu"
+        )
         model.load_state_dict(load_dict["model_state_dict"])
 
     model.to(device)
 
     # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
     # 1e-6 => 0.0010000000474974513
-    optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
+    optimizer = torch.optim.Adagrad(
+        model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513
+    )
     # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1000, 1500], gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[1000, 1500], gamma=0.5
+    )
 
     if resume_name:
         optimizer.load_state_dict(load_dict["optimizer_state_dict"])
@@ -1696,8 +1837,12 @@ def train3(
             f"==>> epoch {epoch+1} train_time: {train_time}\nloss: {round(epoch_mean_loss,4)} MIL_loss: {round(epoch_mean_MIL_loss,4)}"
         )
         print(f"accuracy: {epoch_accuracy:.2f}")
-        print(f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}")
-        print(f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}")
+        print(
+            f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}"
+        )
+        print(
+            f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}"
+        )
 
         if (epoch + 1) % save_interval == 0:
 
@@ -1762,7 +1907,9 @@ def train3(
                         normal_input, normal_gt = normal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 12)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        abnormal_gt2 = torch.max(
+                            abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2
+                        )[0]
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
@@ -1785,10 +1932,16 @@ def train3(
                         #     print(f"==>> gts: {gts}")
                         #     counter = patience + 1
 
-                        val_MIL_loss = MIL_criterion(pred, val_batch_size, abnormal_input.size(1))
+                        val_MIL_loss = MIL_criterion(
+                            pred, val_batch_size, abnormal_input.size(1)
+                        )
 
-                        pred_a = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 0, :]
-                        pred_n = pred.view(val_batch_size, 2, abnormal_input.size(1))[:, 1, :]
+                        pred_a = pred.view(val_batch_size, 2, abnormal_input.size(1))[
+                            :, 0, :
+                        ]
+                        pred_n = pred.view(val_batch_size, 2, abnormal_input.size(1))[
+                            :, 1, :
+                        ]
 
                         pred_a_max = torch.mean(torch.max(pred_a, dim=-1)[0])
                         pred_n_max = torch.mean(torch.max(pred_n, dim=-1)[0])
@@ -1811,9 +1964,13 @@ def train3(
 
                         for j in range(abnormal_input.size(1)):
                             pred_abnormal_np[step[j] * 16 : step[j + 1] * 16] = pred[j]
-                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[abnormal_input.size(1) + j]
+                            pred_normal_np[step[j] * 16 : step[j + 1] * 16] = pred[
+                                abnormal_input.size(1) + j
+                            ]
 
-                        pred_np = np.concatenate((pred_abnormal_np, pred_normal_np), axis=0)
+                        pred_np = np.concatenate(
+                            (pred_abnormal_np, pred_normal_np), axis=0
+                        )
 
                         abnormal_gt = abnormal_gt.squeeze().detach().cpu().numpy()
                         # abnormal_gt2 = abnormal_gt2.squeeze().detach().cpu().numpy()
@@ -1827,7 +1984,9 @@ def train3(
                             # auc = roc_auc_score(y_true=gt_np, y_score=pred)
 
                             fpr, tpr, cut = roc_curve(y_true=gt_np, y_score=pred_np)
-                            precision, recall, cut2 = precision_recall_curve(gt_np, pred_np)
+                            precision, recall, cut2 = precision_recall_curve(
+                                gt_np, pred_np
+                            )
 
                             auc = sklearn.metrics.auc(fpr, tpr)
                             ap = sklearn.metrics.auc(recall, precision)
@@ -1846,7 +2005,9 @@ def train3(
 
                             total_n_auc += auc
                             total_n_ap += ap
-                            total_n_n_corrects += corrects / (abnormal_input.size(1) * 2)
+                            total_n_n_corrects += corrects / (
+                                abnormal_input.size(1) * 2
+                            )
                             total_n_loss += val_loss.item()
                             total_n_MIL_loss += val_MIL_loss.item()
 
@@ -1868,7 +2029,9 @@ def train3(
                         abnormal_input, abnormal_gt = abnormal_inputs
                         # (val_batch_size, 12, 710), (val_batch_size, 192)
 
-                        abnormal_gt2 = torch.max(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)[0]
+                        abnormal_gt2 = torch.max(
+                            abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2
+                        )[0]
                         # abnormal_gt2 = torch.mean(abnormal_gt.view(-1, abnormal_input.size(1), 16), dim=2)
                         # (val_batch_size, 12)
 
@@ -1914,8 +2077,12 @@ def train3(
                             # auc = roc_auc_score(y_true=abnormal_gt, y_score=pred_abnormal_np)
                             # auc = roc_auc_score(y_true=abnormal_gt2, y_score=pred)
 
-                            fpr, tpr, cut = roc_curve(y_true=abnormal_gt, y_score=pred_abnormal_np)
-                            precision, recall, cut2 = precision_recall_curve(abnormal_gt, pred_abnormal_np)
+                            fpr, tpr, cut = roc_curve(
+                                y_true=abnormal_gt, y_score=pred_abnormal_np
+                            )
+                            precision, recall, cut2 = precision_recall_curve(
+                                abnormal_gt, pred_abnormal_np
+                            )
 
                             auc = sklearn.metrics.auc(fpr, tpr)
                             ap = sklearn.metrics.auc(recall, precision)
@@ -1948,8 +2115,12 @@ def train3(
                             error_count += 1
                             # print("0~180 전부 0인 abnormal 영상 있음")
 
-                val_n_mean_loss = total_n_loss / (len(normal_valid_loader) - error_n_count)
-                val_n_mean_MIL_loss = total_n_MIL_loss / (len(normal_valid_loader) - error_n_count)
+                val_n_mean_loss = total_n_loss / (
+                    len(normal_valid_loader) - error_n_count
+                )
+                val_n_mean_MIL_loss = total_n_MIL_loss / (
+                    len(normal_valid_loader) - error_n_count
+                )
 
                 val_n_fpr = total_n_fpr / ((len(normal_valid_loader) - error_n_count))
                 val_n_tpr = total_n_tpr / ((len(normal_valid_loader) - error_n_count))
@@ -1957,7 +2128,9 @@ def train3(
                 val_n_auc = total_n_auc / (len(normal_valid_loader) - error_n_count)
                 val_n_ap = total_n_ap / (len(normal_valid_loader) - error_n_count)
 
-                val_n_accuracy = total_n_n_corrects / ((len(normal_valid_loader) - error_n_count))
+                val_n_accuracy = total_n_n_corrects / (
+                    (len(normal_valid_loader) - error_n_count)
+                )
 
                 val_mean_loss = (total_loss + total_n_loss) / (
                     len(abnormal_valid_loader) - error_n_count - error_count
@@ -1975,14 +2148,20 @@ def train3(
                 val_auc = (total_auc + total_n_auc) / (
                     len(abnormal_valid_loader) - error_n_count - error_count
                 )
-                val_ap = (total_ap + total_n_ap) / (len(abnormal_valid_loader) - error_n_count - error_count)
+                val_ap = (total_ap + total_n_ap) / (
+                    len(abnormal_valid_loader) - error_n_count - error_count
+                )
                 val_accuracy = (total_n_corrects + total_n_n_corrects) / (
                     (len(abnormal_valid_loader) - error_n_count - error_count)
                 )
                 # for loop 한번에 abnormal 12, normal 12해서 24개 정답 확인
 
-                val_mean_normal_max = total_normal_max / (len(normal_valid_loader) - error_n_count)
-                val_mean_normal_mean = total_normal_mean / (len(normal_valid_loader) - error_n_count)
+                val_mean_normal_max = total_normal_max / (
+                    len(normal_valid_loader) - error_n_count
+                )
+                val_mean_normal_mean = total_normal_mean / (
+                    len(normal_valid_loader) - error_n_count
+                )
                 val_mean_abnormal_max = total_abnormal_max / (
                     len(abnormal_valid_loader) - error_n_count - error_count
                 )
@@ -1991,7 +2170,9 @@ def train3(
                 )
 
             if best_loss > val_mean_loss:
-                print(f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
+                print(
+                    f"Best performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}"
+                )
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -2003,7 +2184,9 @@ def train3(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_loss = val_mean_loss
                 # counter = 0
@@ -2024,7 +2207,9 @@ def train3(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best_auc.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best_auc.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_auc = val_auc
                 counter = 0
@@ -2080,7 +2265,9 @@ def train3(
         print(
             f"==>> val_abnormal_max_mean: {val_mean_abnormal_max} val_abnormal_mean: {val_mean_abnormal_mean}"
         )
-        print(f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}")
+        print(
+            f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}"
+        )
         print(f"==>> error_count: {error_count}")
 
         if counter > patience:

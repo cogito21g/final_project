@@ -1,17 +1,15 @@
+import json
 import os
 import os.path as osp
+from collections import defaultdict as dd
 
-from torch.utils.data import Dataset
+import numpy as np
+import pandas as pd
+import torch
 
 # from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import normalize
-
-import pandas as pd
-import numpy as np
-import torch
-
-import json
-from collections import defaultdict as dd
+from torch.utils.data import Dataset
 
 
 class NormalDataset(Dataset):
@@ -48,13 +46,18 @@ class NormalDataset(Dataset):
 
             id_counter = pd.Series(dat["ID"]).value_counts(sort=False)
 
-            for id_to_del in id_counter[id_counter < sequence_length + prediction_time].index:
+            for id_to_del in id_counter[
+                id_counter < sequence_length + prediction_time
+            ].index:
                 dat.drop(dat[dat["ID"] == id_to_del].index, inplace=True)
 
             id_counter = pd.Series(dat["ID"]).value_counts(sort=False)
 
             print(f"==>>{i}번째 처리 후 dat.shape: {dat.shape}")
-            assert len(id_counter[id_counter < sequence_length + prediction_time].index) == 0
+            assert (
+                len(id_counter[id_counter < sequence_length + prediction_time].index)
+                == 0
+            )
 
             for count in id_counter:
                 cur_id_length = count - sequence_length - prediction_time + 1
@@ -95,7 +98,9 @@ class NormalDataset(Dataset):
         # id_counter = pd.Series(self.dat["ID"]).value_counts(sort=False)
         # # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-        assert len(id_counter[id_counter < sequence_length + prediction_time].index) == 0
+        assert (
+            len(id_counter[id_counter < sequence_length + prediction_time].index) == 0
+        )
 
         # self.length = 0
 
@@ -125,7 +130,10 @@ class NormalDataset(Dataset):
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
         # (self.sequence_length, 38)
         target = self.dat[
-            real_idx + self.sequence_length : real_idx + self.sequence_length + self.prediction_time
+            real_idx
+            + self.sequence_length : real_idx
+            + self.sequence_length
+            + self.prediction_time
         ].copy()
         target.drop(columns=["ID"], inplace=True)
         target = np.array(target)
@@ -147,7 +155,9 @@ class NormalDataset(Dataset):
         while start <= end:
             mid = (start + end) // 2
             if self.range_table[mid] == idx:
-                real_idx = idx + ((mid + 1) * (self.sequence_length + self.prediction_time - 1))
+                real_idx = idx + (
+                    (mid + 1) * (self.sequence_length + self.prediction_time - 1)
+                )
                 return real_idx
 
             if self.range_table[mid] > idx:
@@ -195,13 +205,18 @@ class AbnormalDataset(Dataset):
 
             id_counter = pd.Series(dat["ID"]).value_counts(sort=False)
 
-            for id_to_del in id_counter[id_counter < sequence_length + prediction_time].index:
+            for id_to_del in id_counter[
+                id_counter < sequence_length + prediction_time
+            ].index:
                 dat.drop(dat[dat["ID"] == id_to_del].index, inplace=True)
 
             id_counter = pd.Series(dat["ID"]).value_counts(sort=False)
 
             print(f"==>>{i}번째 처리 후 dat.shape: {dat.shape}")
-            assert len(id_counter[id_counter < sequence_length + prediction_time].index) == 0
+            assert (
+                len(id_counter[id_counter < sequence_length + prediction_time].index)
+                == 0
+            )
 
             for count in id_counter:
                 cur_id_length = count - sequence_length - prediction_time + 1
@@ -218,7 +233,9 @@ class AbnormalDataset(Dataset):
 
         id_counter = pd.Series(self.dat["ID"]).value_counts(sort=False)
 
-        assert len(id_counter[id_counter < sequence_length + prediction_time].index) == 0
+        assert (
+            len(id_counter[id_counter < sequence_length + prediction_time].index) == 0
+        )
 
         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
         # TODO: 한 영상에 start end 여러번 있는 경우 고려해서 코드 수정하기
@@ -256,7 +273,10 @@ class AbnormalDataset(Dataset):
         sequence = np.array(sequence)
         # (self.sequence_length, 38)
         target = self.dat[
-            real_idx + self.sequence_length : real_idx + self.sequence_length + self.prediction_time
+            real_idx
+            + self.sequence_length : real_idx
+            + self.sequence_length
+            + self.prediction_time
         ].copy()
         target_frames = target["Frame"].unique()
         target_filename = target["Filename"].unique()[0].split(".")[0]
@@ -273,16 +293,22 @@ class AbnormalDataset(Dataset):
         for target_frame in target_frames:
             temp = 0
             for cur_id in self.frame_label[target_filename].keys():
-                if int(target_frame) >= int(self.frame_label[target_filename][cur_id][0]) and int(
-                    target_frame
-                ) <= int(self.frame_label[target_filename][cur_id][1]):
+                if int(target_frame) >= int(
+                    self.frame_label[target_filename][cur_id][0]
+                ) and int(target_frame) <= int(
+                    self.frame_label[target_filename][cur_id][1]
+                ):
                     temp = 1
 
             target_labels.append(temp)
 
         target_labels = torch.LongTensor(target_labels)
 
-        return torch.from_numpy(sequence).float(), torch.from_numpy(target).float(), target_labels
+        return (
+            torch.from_numpy(sequence).float(),
+            torch.from_numpy(target).float(),
+            target_labels,
+        )
 
     def find_real_idx(self, idx):
 
@@ -291,7 +317,9 @@ class AbnormalDataset(Dataset):
         while start <= end:
             mid = (start + end) // 2
             if self.range_table[mid] == idx:
-                real_idx = idx + ((mid + 1) * (self.sequence_length + self.prediction_time - 1))
+                real_idx = idx + (
+                    (mid + 1) * (self.sequence_length + self.prediction_time - 1)
+                )
                 return real_idx
 
             if self.range_table[mid] > idx:
@@ -360,7 +388,9 @@ class NormalVMAE(Dataset):
             feature_npy[: feature.shape[0]] = feature
             # np.load로 불러온 정상영상 feature는 (57, 710) 또는 (38,710)
 
-            feature_npy[feature.shape[0] :] = [feature_npy[-1]] * (count * 12 - feature.shape[0])
+            feature_npy[feature.shape[0] :] = [feature_npy[-1]] * (
+                count * 12 - feature.shape[0]
+            )
             # 정상영상 feature의 마지막 부분으로 빈 자리 채우기
 
         feature_npy = feature_npy.reshape(12, -1, 710)
@@ -371,7 +401,10 @@ class NormalVMAE(Dataset):
         gts = np.zeros(11)
         # 정상영상은 전부 정답이 0
 
-        return torch.from_numpy(feature_npy[:-1, :]).float(), torch.from_numpy(gts).float()
+        return (
+            torch.from_numpy(feature_npy[:-1, :]).float(),
+            torch.from_numpy(gts).float(),
+        )
 
 
 class AbnormalVMAE(Dataset):
@@ -437,7 +470,10 @@ class AbnormalVMAE(Dataset):
 
         # @@ validation일때는 평균내지 않고 (192) numpy array 그대로 반환
 
-        return torch.from_numpy(feature_npy[:-1, :]).float(), torch.from_numpy(gts).float()
+        return (
+            torch.from_numpy(feature_npy[:-1, :]).float(),
+            torch.from_numpy(gts).float(),
+        )
 
 
 class NewNormalVMAE(Dataset):
@@ -501,7 +537,9 @@ class NewNormalVMAE(Dataset):
 
         feature_npy = np.zeros((self.num_segments, 710)).astype(np.float32)
 
-        sample_index = np.linspace(0, feature.shape[0], self.num_segments + 1, dtype=np.uint16)
+        sample_index = np.linspace(
+            0, feature.shape[0], self.num_segments + 1, dtype=np.uint16
+        )
         # ex: feature.shape[0]이 62이고, self.num_segments이 200이면
         # sample_index == [ 0  0  0  0  1  1  1  2  2  2  3  3  3  4  4  4  4  5  5  5  6  6  6  7
         #   7  7  8  8  8  8  9  9  9 10 10 10 11 11 11 12 12 12 13 13 13 13 14 14
@@ -519,7 +557,9 @@ class NewNormalVMAE(Dataset):
             if sample_index[i] == sample_index[i + 1]:
                 feature_npy[i, :] = feature[sample_index[i], :]
             else:
-                feature_npy[i, :] = feature[sample_index[i] : sample_index[i + 1], :].mean(0)
+                feature_npy[i, :] = feature[
+                    sample_index[i] : sample_index[i + 1], :
+                ].mean(0)
                 # ex2의 0과 6 => [0:6] => 0~5 feature 6개 평균
                 # ex1의 0과 1 => [0:1] => 0~0 feature 1개 평균 => 0번 feature 그대로
 
@@ -608,7 +648,9 @@ class NewAbnormalVMAE(Dataset):
 
         feature_npy = np.zeros((self.num_segments, 710)).astype(np.float32)
 
-        sample_index = np.linspace(0, feature.shape[0], self.num_segments + 1, dtype=np.uint16)
+        sample_index = np.linspace(
+            0, feature.shape[0], self.num_segments + 1, dtype=np.uint16
+        )
         # ex: feature.shape[0]이 62이고, self.num_segments이 11이면
         # sample_index == [ 0,  6, 12, 18, 24, 31, 37, 43, 49, 55, 62]
 
@@ -616,7 +658,9 @@ class NewAbnormalVMAE(Dataset):
             if sample_index[i] == sample_index[i + 1]:
                 feature_npy[i, :] = feature[sample_index[i], :]
             else:
-                feature_npy[i, :] = feature[sample_index[i] : sample_index[i + 1], :].mean(0)
+                feature_npy[i, :] = feature[
+                    sample_index[i] : sample_index[i + 1], :
+                ].mean(0)
                 # ex의 0과 6 => [0:6] => 0~5 feature 6개 평균
 
         # feature.shape[0]이 self.num_segments보다 짧으면 같은 feature 반복

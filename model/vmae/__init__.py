@@ -1,3 +1,4 @@
+from .classifier import WSAD, MILClassifier
 from .modeling_finetune import (
     vit_base_patch16_224,
     vit_giant_patch14_224,
@@ -12,9 +13,6 @@ from .modeling_pretrain import (
     pretrain_videomae_large_patch16_224,
     pretrain_videomae_small_patch16_224,
 )
-
-from .classifier import MILClassifier
-from .classifier import WSAD
 
 __all__ = [
     "pretrain_videomae_small_patch16_224",

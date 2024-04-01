@@ -1,33 +1,30 @@
-import pandas as pd
-import numpy as np
+import os
+import os.path as osp
 import random
-import matplotlib.pyplot as plt
-
+from argparse import ArgumentParser
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import sklearn.metrics
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from torch.utils.data import Dataset, DataLoader, random_split, ConcatDataset
-
-from sklearn.metrics import roc_auc_score, roc_curve, precision_recall_curve
-import sklearn.metrics
+import wandb
+from classifier import WSAD, MILClassifier
+from loss import MIL, LossComputer
+from shop_dataset import NewAbnormalVMAE, NewNormalVMAE
+from sklearn.metrics import precision_recall_curve, roc_auc_score, roc_curve
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
+from tqdm import tqdm
 
 # from sklearn.preprocessing import MinMaxScaler
 
-from argparse import ArgumentParser
 
-import os
-import os.path as osp
 
-from tqdm import tqdm
 
-import wandb
 
-from shop_dataset import NewNormalVMAE, NewAbnormalVMAE
-from classifier import WSAD, MILClassifier
-from loss import MIL, LossComputer
 
 
 def parse_args():
@@ -60,7 +57,9 @@ def parse_args():
         ),
     )
     # abnormal 검증셋 npy, json파일 경로
-    parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "../pths"))
+    parser.add_argument(
+        "--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "../pths")
+    )
     # pth 파일 저장 경로
 
     parser.add_argument("--model_name", type=str, default="BNWVAD")
@@ -82,7 +81,9 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=666)
     # random seed
 
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--device", default="cuda" if torch.cuda.is_available() else "cpu"
+    )
     parser.add_argument("--num_workers", type=int, default=0)
 
     parser.add_argument("--batch_size", type=int, default=30)
@@ -251,7 +252,10 @@ def train_BNWVAD(
     )
 
     abnormal_valid_loader = DataLoader(
-        dataset=abnormal_valid_dataset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers
+        dataset=abnormal_valid_dataset,
+        batch_size=val_batch_size,
+        shuffle=False,
+        num_workers=val_num_workers,
     )
 
     data_load_end = datetime.now()
@@ -271,7 +275,9 @@ def train_BNWVAD(
     load_dict = None
 
     if resume_name:
-        load_dict = torch.load(osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu")
+        load_dict = torch.load(
+            osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu"
+        )
         model.load_state_dict(load_dict["model_state_dict"])
 
     model.to(device)
@@ -279,14 +285,19 @@ def train_BNWVAD(
     # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
     # 1e-6 => 0.0010000000474974513
     optimizer = torch.optim.Adam(
-        model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay
+        model.parameters(),
+        lr=learning_rate,
+        betas=(0.9, 0.999),
+        weight_decay=weight_decay,
     )
     # optimizer = torch.optim.AdamW(
     #     model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay
     # )
     # optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1000, 1500], gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[1000, 1500], gamma=0.5
+    )
 
     if resume_name:
         optimizer.load_state_dict(load_dict["optimizer_state_dict"])
@@ -405,8 +416,12 @@ def train_BNWVAD(
         print(
             f"MPP_loss: {round(epoch_mean_MPP_loss,4)} norm_loss: {round(epoch_mean_norm_loss,4)} MPP+norm_loss: {round(epoch_mean_MPP_and_norm_loss,4)}"
         )
-        print(f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}")
-        print(f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}")
+        print(
+            f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}"
+        )
+        print(
+            f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}"
+        )
 
         if (epoch + 1) % save_interval == 0:
 
@@ -512,7 +527,9 @@ def train_BNWVAD(
                         # auc = roc_auc_score(y_true=gt_np, y_score=pred)
 
                         fpr, tpr, cut = roc_curve(y_true=gts_np, y_score=pred_np)
-                        precision, recall, cut2 = precision_recall_curve(gts_np, pred_np)
+                        precision, recall, cut2 = precision_recall_curve(
+                            gts_np, pred_np
+                        )
 
                         auc = sklearn.metrics.auc(fpr, tpr)
                         ap = sklearn.metrics.auc(recall, precision)
@@ -581,22 +598,36 @@ def train_BNWVAD(
                 val_bthr = total_bthr / (len(abnormal_valid_loader) - error_count)
                 val_auc = total_auc / (len(abnormal_valid_loader) - error_count)
                 val_ap = total_ap / (len(abnormal_valid_loader) - error_count)
-                val_accuracy = total_n_corrects / ((len(abnormal_valid_loader) - error_count))
+                val_accuracy = total_n_corrects / (
+                    (len(abnormal_valid_loader) - error_count)
+                )
 
                 val_ab_fpr = total_ab_fpr / (len(abnormal_valid_loader) - error_count)
                 val_ab_tpr = total_ab_tpr / (len(abnormal_valid_loader) - error_count)
                 val_ab_bthr = total_ab_bthr / (len(abnormal_valid_loader) - error_count)
                 val_ab_auc = total_ab_auc / (len(abnormal_valid_loader) - error_count)
                 val_ab_ap = total_ab_ap / (len(abnormal_valid_loader) - error_count)
-                val_ab_accuracy = total_ab_n_corrects / ((len(abnormal_valid_loader) - error_count))
+                val_ab_accuracy = total_ab_n_corrects / (
+                    (len(abnormal_valid_loader) - error_count)
+                )
 
-                val_mean_normal_max = total_normal_max / (len(abnormal_valid_loader) - error_count)
-                val_mean_normal_mean = total_normal_mean / (len(abnormal_valid_loader) - error_count)
-                val_mean_abnormal_max = total_abnormal_max / (len(abnormal_valid_loader) - error_count)
-                val_mean_abnormal_mean = total_abnormal_mean / (len(abnormal_valid_loader) - error_count)
+                val_mean_normal_max = total_normal_max / (
+                    len(abnormal_valid_loader) - error_count
+                )
+                val_mean_normal_mean = total_normal_mean / (
+                    len(abnormal_valid_loader) - error_count
+                )
+                val_mean_abnormal_max = total_abnormal_max / (
+                    len(abnormal_valid_loader) - error_count
+                )
+                val_mean_abnormal_mean = total_abnormal_mean / (
+                    len(abnormal_valid_loader) - error_count
+                )
 
             if best_loss > val_mean_loss:
-                print(f"Best loss performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
+                print(
+                    f"Best loss performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}"
+                )
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -608,7 +639,9 @@ def train_BNWVAD(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_loss = val_mean_loss
                 # counter = 0
@@ -629,7 +662,9 @@ def train_BNWVAD(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best_auc.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best_auc.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_auc = val_auc
                 counter = 0
@@ -671,20 +706,28 @@ def train_BNWVAD(
         epoch_end = datetime.now()
         epoch_time = epoch_end - epoch_start
         epoch_time = str(epoch_time).split(".")[0]
-        print(f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}")
+        print(
+            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}"
+        )
         # print(
         #     f"valid_n_MPP_loss: {round(val_n_mean_MPP_loss,4)} valid_n_norm_loss: {round(val_n_mean_norm_loss,4)} valid_n_MPP+norm_loss: {round(val_n_mean_MPP_and_norm_loss,4)}"
         # )
         print(f"valid_fpr: {val_fpr} valid_tpr: {val_tpr} valid_bthr: {val_bthr}")
-        print(f"valid_auc: {val_auc:.4f} valid_ap: {val_ap:.4f} valid_accuracy: {val_accuracy:.2f}")
-        print(f"valid_ab_fpr: {val_ab_fpr} valid_ab_tpr: {val_ab_tpr} valid_ab_bthr: {val_ab_bthr}")
+        print(
+            f"valid_auc: {val_auc:.4f} valid_ap: {val_ap:.4f} valid_accuracy: {val_accuracy:.2f}"
+        )
+        print(
+            f"valid_ab_fpr: {val_ab_fpr} valid_ab_tpr: {val_ab_tpr} valid_ab_bthr: {val_ab_bthr}"
+        )
         print(
             f"valid_ab_auc: {val_ab_auc:.4f} valid_ab_ap: {val_ab_ap:.4f} valid_ab_accuracy: {val_ab_accuracy:.2f}"
         )
         print(
             f"==>> val_abnormal_max_mean: {val_mean_abnormal_max} val_abnormal_mean: {val_mean_abnormal_mean}"
         )
-        print(f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}")
+        print(
+            f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}"
+        )
         print(f"==>> error_count: {error_count}")
 
         if counter > patience:
@@ -815,7 +858,10 @@ def train_MIL(
     )
 
     abnormal_valid_loader = DataLoader(
-        dataset=abnormal_valid_dataset, batch_size=val_batch_size, shuffle=False, num_workers=val_num_workers
+        dataset=abnormal_valid_dataset,
+        batch_size=val_batch_size,
+        shuffle=False,
+        num_workers=val_num_workers,
     )
 
     data_load_end = datetime.now()
@@ -829,20 +875,26 @@ def train_MIL(
     load_dict = None
 
     if resume_name:
-        load_dict = torch.load(osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu")
+        load_dict = torch.load(
+            osp.join(model_dir, f"{resume_name}.pth"), map_location="cpu"
+        )
         model.load_state_dict(load_dict["model_state_dict"])
 
     model.to(device)
 
     # optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
     # 1e-6 => 0.0010000000474974513
-    optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
+    optimizer = torch.optim.Adagrad(
+        model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513
+    )
     # optimizer = torch.optim.AdamW(
     #     model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay
     # )
     # optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=0.0010000000474974513)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[1000, 1500], gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=[1000, 1500], gamma=0.5
+    )
 
     if resume_name:
         optimizer.load_state_dict(load_dict["optimizer_state_dict"])
@@ -947,8 +999,12 @@ def train_MIL(
         train_time = str(train_time).split(".")[0]
         print(f"==>> epoch {epoch+1} train_time: {train_time}")
         print(f"MIL_loss: {round(epoch_mean_MIL_loss,4)}")
-        print(f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}")
-        print(f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}")
+        print(
+            f"==>> abnormal_max_mean: {epoch_mean_abnormal_max} abnormal_mean: {epoch_mean_abnormal_mean}"
+        )
+        print(
+            f"==>> normal_max_mean: {epoch_mean_normal_max} normal_mean: {epoch_mean_normal_mean}"
+        )
 
         if (epoch + 1) % save_interval == 0:
 
@@ -1051,7 +1107,9 @@ def train_MIL(
                         # auc = roc_auc_score(y_true=gt_np, y_score=pred)
 
                         fpr, tpr, cut = roc_curve(y_true=gts_np, y_score=pred_np)
-                        precision, recall, cut2 = precision_recall_curve(gts_np, pred_np)
+                        precision, recall, cut2 = precision_recall_curve(
+                            gts_np, pred_np
+                        )
 
                         auc = sklearn.metrics.auc(fpr, tpr)
                         ap = sklearn.metrics.auc(recall, precision)
@@ -1123,22 +1181,36 @@ def train_MIL(
                 val_bthr = total_bthr / (len(abnormal_valid_loader) - error_count)
                 val_auc = total_auc / (len(abnormal_valid_loader) - error_count)
                 val_ap = total_ap / (len(abnormal_valid_loader) - error_count)
-                val_accuracy = total_n_corrects / ((len(abnormal_valid_loader) - error_count))
+                val_accuracy = total_n_corrects / (
+                    (len(abnormal_valid_loader) - error_count)
+                )
 
                 val_ab_fpr = total_ab_fpr / (len(abnormal_valid_loader) - error_count)
                 val_ab_tpr = total_ab_tpr / (len(abnormal_valid_loader) - error_count)
                 val_ab_bthr = total_ab_bthr / (len(abnormal_valid_loader) - error_count)
                 val_ab_auc = total_ab_auc / (len(abnormal_valid_loader) - error_count)
                 val_ab_ap = total_ab_ap / (len(abnormal_valid_loader) - error_count)
-                val_ab_accuracy = total_ab_n_corrects / ((len(abnormal_valid_loader) - error_count))
+                val_ab_accuracy = total_ab_n_corrects / (
+                    (len(abnormal_valid_loader) - error_count)
+                )
 
-                val_mean_normal_max = total_normal_max / (len(abnormal_valid_loader) - error_count)
-                val_mean_normal_mean = total_normal_mean / (len(abnormal_valid_loader) - error_count)
-                val_mean_abnormal_max = total_abnormal_max / (len(abnormal_valid_loader) - error_count)
-                val_mean_abnormal_mean = total_abnormal_mean / (len(abnormal_valid_loader) - error_count)
+                val_mean_normal_max = total_normal_max / (
+                    len(abnormal_valid_loader) - error_count
+                )
+                val_mean_normal_mean = total_normal_mean / (
+                    len(abnormal_valid_loader) - error_count
+                )
+                val_mean_abnormal_max = total_abnormal_max / (
+                    len(abnormal_valid_loader) - error_count
+                )
+                val_mean_abnormal_mean = total_abnormal_mean / (
+                    len(abnormal_valid_loader) - error_count
+                )
 
             if best_loss > val_mean_loss:
-                print(f"Best loss performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}")
+                print(
+                    f"Best loss performance at epoch: {epoch + 1}, {best_loss:.4f} -> {val_mean_loss:.4f}"
+                )
                 print(f"Save model in {model_dir}")
                 states = {
                     "epoch": epoch,
@@ -1150,7 +1222,9 @@ def train_MIL(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_loss = val_mean_loss
                 # counter = 0
@@ -1171,7 +1245,9 @@ def train_MIL(
                     # best.pth는 inference에서만 쓰기?
                 }
 
-                best_ckpt_fpath = osp.join(model_dir, f"{model_name}_{train_start}_best_auc.pth")
+                best_ckpt_fpath = osp.join(
+                    model_dir, f"{model_name}_{train_start}_best_auc.pth"
+                )
                 torch.save(states, best_ckpt_fpath)
                 best_auc = val_auc
                 counter = 0
@@ -1211,20 +1287,28 @@ def train_MIL(
         epoch_end = datetime.now()
         epoch_time = epoch_end - epoch_start
         epoch_time = str(epoch_time).split(".")[0]
-        print(f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}")
+        print(
+            f"==>> epoch {epoch+1} time: {epoch_time}\nvalid_loss: {round(val_mean_loss,4)}"
+        )
         # print(
         #     f"valid_n_MPP_loss: {round(val_n_mean_MPP_loss,4)} valid_n_norm_loss: {round(val_n_mean_norm_loss,4)} valid_n_MPP+norm_loss: {round(val_n_mean_MPP_and_norm_loss,4)}"
         # )
         print(f"valid_fpr: {val_fpr} valid_tpr: {val_tpr} valid_bthr: {val_bthr}")
-        print(f"valid_auc: {val_auc:.4f} valid_ap: {val_ap:.4f} valid_accuracy: {val_accuracy:.2f}")
-        print(f"valid_ab_fpr: {val_ab_fpr} valid_ab_tpr: {val_ab_tpr} valid_ab_bthr: {val_ab_bthr}")
+        print(
+            f"valid_auc: {val_auc:.4f} valid_ap: {val_ap:.4f} valid_accuracy: {val_accuracy:.2f}"
+        )
+        print(
+            f"valid_ab_fpr: {val_ab_fpr} valid_ab_tpr: {val_ab_tpr} valid_ab_bthr: {val_ab_bthr}"
+        )
         print(
             f"valid_ab_auc: {val_ab_auc:.4f} valid_ab_ap: {val_ab_ap:.4f} valid_ab_accuracy: {val_ab_accuracy:.2f}"
         )
         print(
             f"==>> val_abnormal_max_mean: {val_mean_abnormal_max} val_abnormal_mean: {val_mean_abnormal_mean}"
         )
-        print(f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}")
+        print(
+            f"==>> val_normal_max_mean: {val_mean_normal_max} val_normal_mean: {val_mean_normal_mean}"
+        )
         print(f"==>> error_count: {error_count}")
 
         if counter > patience:
