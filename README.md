@@ -4,8 +4,7 @@
 
 웹으로 비디오, 실시간(CCTV, 유튜브) 영상을 받아 무인 매장에서 발생할 수 있는 다양한 이상 상황을 분석하고 해당 장면과 시간뿐만 아니라 이메일을 통해 알람을 제공하는 서비스입니다.
 
-
-팀 구성 및 역할
+## 팀 구성 및 역할
 
 | 이 름 | 역 할 |
 | ----- | ----- |
@@ -16,7 +15,7 @@
 | 조형서 | 웹 개발, 모델 조사 |
 | 최수진 | 모델링, 데이터 전처리, YOLO 계열 모델 구현 |
 
- ## 개발 타임라인
+## 개발 타임라인
 
 <p align="center">
     <img src="./asset/timeline.png" width="90%" height="90%">
@@ -24,21 +23,22 @@
 
 ## 문제 정의
 
-<aside>
-무인 점포가 증가하면서 **범죄 발생률도 같이 증가**하고, **심야, 주말** 등 관리가 소홀할 때 많은 범죄가 발생<br>
-<br>
-</aside>
+무인 점포가 증가하면서 **범죄 발생률도 같이 증가**하고, **심야, 주말** 등 관리가 소홀할 때 많은 범죄가 발생.
+
 <p align="center">
     <img src="./asset/Untitled%201.png" width="30%" height="30%">
     <img src="./asset/Untitled%202.png" width="30%" height="30%">
     <img src="./asset/Untitled%203.png" width="30%" height="30%">
 </p>
 
-⇒ CCTV 를 활용하여 이상행동을 자동으로 탐지하고 증거확보 및 실시간 알람을 준다면 이 문제를 해소할 수 있지 않을까?
+=>⇒ CCTV 를 활용하여 이상행동을 자동으로 탐지하고 증거확보 및 실시간 알람을 준다면 이 문제를 해소할 수 있지 않을까?
 
-## 해결 방안
+## 💡 해결 방안
 
-서비스 측면
+<aside>
+🌐 서비스 측면
+
+</aside>
 
 - 녹화된 영상을 직접 돌려보는 **시간과 비용 발생**
     
@@ -49,16 +49,20 @@
     ⇒ **실시간 영상 분석**을 통해 **타임 스탬프, 스크린 샷** 그리고 **알람** 기능을 제공
     
 
-모델 측면
+<aside>
+💻 모델 측면
+
+</aside>
 
 - **대용량, 장시간** CCTV 데이터를 사람보다 빠르게 처리하도록 속도 개선
 - 무인 매장에서 발생할 수 있는 **다양한 상황**들을 잘 감지할 수 있도록 개선
 - 이상 상황은 정확하게 판단하면서 **오탐률을 낮추는 방향**으로 개선
 
+---
 
-## Data
+## 📼 Data
 
-### **AI Hub 실내(편의점, 매장) 사람 이상/정상 행동 데이터**
+### **AI Hub 실내(편의점, 매장) 사람 [이상](https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=data&dataSetSn=71550) / [정상](https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=data&dataSetSn=71549) 행동 데이터**
 
 - 특징
     - 이상 상황 여부를 프레임 단위 라벨링
@@ -73,7 +77,7 @@
     <img src="./asset/Untitled%205.png" width="45%" height="45%">
 </p>
 
-## Data Preprocessing
+## 🔨 Data Preprocessing
 
 <p align="center">
     <img src="./asset/Untitled%206.png" width="70%" height="70%">
@@ -86,11 +90,12 @@
 - Backbone 네트워크의 기학습된 가중치는 고정하고,
 영상 Feature들을 미리 계산해 csv(YOLO v8), npy(Video MAE v2) 파일에 저장해 학습 데이터 용량을 `353 GB` → `2.42 GB` 로 줄여서 학습을 진행
 
+---
 
-## Model
+## 🤖 Model
 
 <aside>
-모델 선정 기준
+💡 모델 선정 기준
 
 </aside>
 
