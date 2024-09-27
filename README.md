@@ -1,14 +1,13 @@
 # 실시간 무인매장 이상행동 탐지
-cv-06 혁신비전테크(IVT) 최종 프로젝트
 
-## 🎞️ 프로젝트 개요
+## 프로젝트 개요
 
 <aside>
-💡 웹으로 비디오, 실시간(CCTV, 유튜브) 영상을 받아 무인 매장에서 발생할 수 있는 다양한 이상 상황을 분석하고 해당 장면과 시간뿐만 아니라 이메일을 통해 알람을 제공하는 서비스입니다.
+웹으로 비디오, 실시간(CCTV, 유튜브) 영상을 받아 무인 매장에서 발생할 수 있는 다양한 이상 상황을 분석하고 해당 장면과 시간뿐만 아니라 이메일을 통해 알람을 제공하는 서비스입니다.
 
 </aside>
 
-## 💁🏻‍♂️ 팀 구성 및 역할
+## 팀 구성 및 역할
 | 이 름 | 역 할 |
 | ----- | ----- |
 | 김시웅 | 데이터셋 구성 및 코드 작성, 데이터 전처리(백본 feature 추출), VMAE 계열 모델 구현 |
@@ -17,16 +16,17 @@ cv-06 혁신비전테크(IVT) 최종 프로젝트
 | 이동형 | AI 모델 학습, 웹 개발, 테스트 및 버그 수정 |
 | 조형서 | 웹 개발, 모델 조사 |
 | 최수진 | 모델링, 데이터 전처리, YOLO 계열 모델 구현 |
-- 개발 타임라인
+
+ ## 개발 타임라인
 
 <p align="center">
     <img src="./asset/timeline.png" width="90%" height="90%">
 </p>
 
-## 📍 문제 정의
+## 문제 정의
 
 <aside>
-💡 무인 점포가 증가하면서 **범죄 발생률도 같이 증가**하고, **심야, 주말** 등 관리가 소홀할 때 많은 범죄가 발생<br>
+무인 점포가 증가하면서 **범죄 발생률도 같이 증가**하고, **심야, 주말** 등 관리가 소홀할 때 많은 범죄가 발생<br>
 <br>
 </aside>
 <p align="center">
@@ -37,10 +37,10 @@ cv-06 혁신비전테크(IVT) 최종 프로젝트
 
 ⇒ CCTV 를 활용하여 이상행동을 자동으로 탐지하고 증거확보 및 실시간 알람을 준다면 이 문제를 해소할 수 있지 않을까?
 
-## 💡 해결 방안
+## 해결 방안
 
 <aside>
-🌐 서비스 측면
+서비스 측면
 
 </aside>
 
@@ -54,7 +54,7 @@ cv-06 혁신비전테크(IVT) 최종 프로젝트
     
 
 <aside>
-💻 모델 측면
+모델 측면
 
 </aside>
 
@@ -64,9 +64,9 @@ cv-06 혁신비전테크(IVT) 최종 프로젝트
 
 ---
 
-## 📼 Data
+## Data
 
-### **AI Hub 실내(편의점, 매장) 사람 [이상](https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=data&dataSetSn=71550) / [정상](https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=data&dataSetSn=71549) 행동 데이터**
+### **AI Hub 실내(편의점, 매장) 사람 이상/정상 행동 데이터**
 
 - 특징
     - 이상 상황 여부를 프레임 단위 라벨링
@@ -81,7 +81,7 @@ cv-06 혁신비전테크(IVT) 최종 프로젝트
     <img src="./asset/Untitled%205.png" width="45%" height="45%">
 </p>
 
-## 🔨 Data Preprocessing
+## Data Preprocessing
 
 <p align="center">
     <img src="./asset/Untitled%206.png" width="70%" height="70%">
@@ -96,10 +96,10 @@ cv-06 혁신비전테크(IVT) 최종 프로젝트
 
 ---
 
-## 🤖 Model
+## Model
 
 <aside>
-💡 모델 선정 기준
+모델 선정 기준
 
 </aside>
 
