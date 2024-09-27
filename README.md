@@ -38,29 +38,21 @@
 
 #### 서비스 측면
 
-
-
 - 녹화된 영상을 직접 돌려보는 **시간과 비용 발생**
-    
     ⇒ 업로드 영상을 분석 후 **타임 스탬프와 스크린 샷** 제공
     
-- CCTV가 있더라도 관리자가 24시간 확인할 수 없어 **현장을 놓치는 문제** 발생
-    
+- CCTV가 있더라도 관리자가 24시간 확인할 수 없어 **현장을 놓치는 문제** 발생    
     ⇒ **실시간 영상 분석**을 통해 **타임 스탬프, 스크린 샷** 그리고 **알람** 기능을 제공
     
 
-<aside>
-💻 모델 측면
-
-</aside>
+#### 모델 측면
 
 - **대용량, 장시간** CCTV 데이터를 사람보다 빠르게 처리하도록 속도 개선
 - 무인 매장에서 발생할 수 있는 **다양한 상황**들을 잘 감지할 수 있도록 개선
 - 이상 상황은 정확하게 판단하면서 **오탐률을 낮추는 방향**으로 개선
 
----
 
-## 📼 Data
+## Data
 
 ### **AI Hub 실내(편의점, 매장) 사람 [이상](https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=data&dataSetSn=71550) / [정상](https://www.aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&aihubDataSe=data&dataSetSn=71549) 행동 데이터**
 
@@ -77,43 +69,35 @@
     <img src="./asset/Untitled%205.png" width="45%" height="45%">
 </p>
 
-## 🔨 Data Preprocessing
+## Data Preprocessing
 
 <p align="center">
     <img src="./asset/Untitled%206.png" width="70%" height="70%">
 </p>
 
-- 비디오 데이터는 이미지 데이터에 비해 매우 큰 용량
-    
-    → 주어진 AI Stages V100 서버는 100 GB **용량 제한**이 있어 모델 전체 End-to-End 학습이 아닌 기학습 가중치를 사용한 백본 네트워크로 영상의 **Feature를 미리 계산**해 학습을 진행
-    
-- Backbone 네트워크의 기학습된 가중치는 고정하고,
-영상 Feature들을 미리 계산해 csv(YOLO v8), npy(Video MAE v2) 파일에 저장해 학습 데이터 용량을 `353 GB` → `2.42 GB` 로 줄여서 학습을 진행
+- 비디오 데이터는 이미지 데이터에 비해 매우 큰 용량    
+    → 주어진 AI Stages V100 서버는 100 GB **용량 제한**이 있어 모델 전체 End-to-End 학습이 아닌 기학습 가중치를 사용한 백본 네트워크로 영상의 **Feature를 미리 계산**해 학습을 진행    
+- Backbone 네트워크의 기학습된 가중치는 고정하고, 영상 Feature들을 미리 계산해 csv(YOLO v8), npy(Video MAE v2) 파일에 저장해 학습 데이터 용량을 `353 GB` → `2.42 GB` 로 줄여서 학습을 진행
 
----
 
-## 🤖 Model
+## Model
 
-<aside>
-💡 모델 선정 기준
 
-</aside>
+#### 모델 선정 기준
 
-▶️ Backbone Network : **Video Masked Auto Encoder v2**
+Backbone Network : **Video Masked Auto Encoder v2**
 
 - 일반적인 영상 이상 탐지 모델의 영상 Feature 추출에 사용되는 Backbone Network는 **I3D**
 
-⛔  I3D 방식은 Optical Flow를 추가로 계산하기 때문에 실시간성 확보에 어려움이 있다고 판단
+I3D 방식은 Optical Flow를 추가로 계산하기 때문에 실시간성 확보에 어려움이 있다고 판단
 
-👉  **Optical Flow 사용하지 않고**
+**Optical Flow 사용하지 않고** **Action Recognition** 분야에서 좋은 성능을 낸 Backbone Network 선정
 
-👉  **Action Recognition** 분야에서 좋은 성능을 낸 Backbone Network 선정
-
-▶️ **YOLO v8**
+**YOLO v8**
 
 - 주어진 데이터 셋의 라벨링에서 객체별 **바운딩 박스**와 **포즈 스켈레톤 키포인트**를 제공하기 때문에 활용할 수 있는 모델을 선정
 
-▶️ Classifier : [**LSTM Auto-Encoder](https://github.com/surya2003-real/anomaly-detection-and-object-tracking?tab=readme-ov-file), [MGFN](https://arxiv.org/abs/2211.15098), [Deep MIL Ranking](https://arxiv.org/abs/1801.04264), [BN-WVAD](https://arxiv.org/abs/2311.15367)**
+Classifier : [**LSTM Auto-Encoder](https://github.com/surya2003-real/anomaly-detection-and-object-tracking?tab=readme-ov-file), [MGFN](https://arxiv.org/abs/2211.15098), [Deep MIL Ranking](https://arxiv.org/abs/1801.04264), [BN-WVAD](https://arxiv.org/abs/2311.15367)**
 
 - 영상 Feature를 정상 / 이상 영상으로 **이진 분류**하는 Classifier
 
@@ -123,12 +107,11 @@
 
 👉  **비지도 학습** 또는 **비디오 단위 라벨링**을 활용한 **약한 지도 학습**이 가능한 구조를 사용
 
-<aside>
-💡 모델 구조 (실험 내용)
 
-</aside>
+#### 모델 구조 (실험 내용)
 
-1️⃣ **YOLO v8 + [LSTM autoencoder](https://github.com/surya2003-real/anomaly-detection-and-object-tracking?tab=readme-ov-file)**
+
+1. **YOLO v8 + [LSTM autoencoder](https://github.com/surya2003-real/anomaly-detection-and-object-tracking?tab=readme-ov-file)**
 
 <p align="center">
     <img src="./asset/Untitled%207.png" width="80%" height="80%">
@@ -149,7 +132,7 @@
 - 장점: **실시간 데이터 처리, 스켈레톤 기반 행동 인식** 가능
 - 한계: 정상 영상이어도 학습 과정에서 배우지 않은 경우 이상으로 판단
 
-2️⃣ **YOLO v8 + [MGFN](https://arxiv.org/abs/2211.15098)**
+2️. **YOLO v8 + [MGFN](https://arxiv.org/abs/2211.15098)**
 
 <p align="center">
     <img src="./asset/Untitled%208.png" width="80%" height="80%">
@@ -171,7 +154,7 @@
 
 ---
 
-3️⃣ **Video MAE v2 + [Deep MIL ranking model](https://arxiv.org/abs/1801.04264)**
+3. **Video MAE v2 + [Deep MIL ranking model](https://arxiv.org/abs/1801.04264)**
 
 <p align="center">
     <img src="./asset/Untitled%209.png" width="80%" height="80%">
@@ -192,7 +175,7 @@
     - 학습 시 이상 영상도 학습해 비지도 방식보다 **일반화 성능 향상**
 - 한계 : 이상 영상 중 이상 행동 토막의 위치를 잘못 예측하는 등 **라벨링 노이즈 발생** 가능
 
-4️⃣ **Video MAE v2 + [BN-WVAD](https://arxiv.org/abs/2311.15367)**
+4. **Video MAE v2 + [BN-WVAD](https://arxiv.org/abs/2311.15367)**
 
 <p align="center">
     <img src="./asset/Untitled%2010.png" width="80%" height="80%">
@@ -212,32 +195,23 @@
     - Deep MIL ranking model의 **라벨링 노이즈** 문제 **개선**
 - 한계 : Triplet 계열 Loss를 사용해 **Batch Size**가 다른 모델에 비해 **매우 커야** 학습이 잘 진행됨
 
----
 
-<aside>
-💡 Metric
-
-</aside>
+#### Metric
 
 - **ROC AUC score**
     - 이상 탐지 모델은
-    **탐지율(True Postive Rate)**도 중요하지만
-    **오탐율(False Postive Rate)** 또한 매우 중요
-    - ⇒ Threshold 값에 따른 **오탐율, 탐지율 값**을
-    곡선으로 표현한 ROC Curve의 면적인  **ROC AUC**로 성능 평가
+    **탐지율(True Postive Rate)**도 중요하지만 **오탐율(False Postive Rate)** 또한 매우 중요
+    - ⇒ Threshold 값에 따른 **오탐율, 탐지율 값**을 곡선으로 표현한 ROC Curve의 면적인  **ROC AUC**로 성능 평가
 - **FPS**
-    - 30 FPS 이상의 실시간 탐지를 위해
-    **1 프레임 당 처리 속도(FPS)**로 속도 평가
+    - 30 FPS 이상의 실시간 탐지를 위해 **1 프레임 당 처리 속도(FPS)**로 속도 평가
 
 <p align="center">
     <img src="./asset/Untitled%2011.jpg" width="60%" height="60%">
 </p>
 <p>TP, FP 에 따른 ROC Curve</p>
 
-<aside>
-💡 실험 결과
 
-</aside>
+#### 실험 결과
 
 - 실험 기록 및 관리는 WandB를 사용하였으며, ROC AUC, FPS 외에도 정확도, 정상 / 이상 영상 예측 스코어 평균, 예측 스코어 최대값 평균 등 다양한 결과 값들을 기록
 
